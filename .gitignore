@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# AM-DevKit machine-generated outputs
+system-profile.json
+devkit-manifest.json
+path-fingerprint.json
+post-install-report.html
+am-devkit-out/

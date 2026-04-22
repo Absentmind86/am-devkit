@@ -1,0 +1,8 @@
+# Profile: Extras — optional personal tools (not included in Absentmind Mode).
+# Winget IDs live in ``core/install_catalog.py`` (layer ``extras``).
+#
+# Includes: PowerToys, Obsidian (+ AM-DevKit Vault template), OBS, ShareX, HWiNFO,
+# WizTree, VLC, Bitwarden, AutoHotkey, Discord, FFmpeg.
+#
+# Enable with:  --profile extras
+# Or use the Phase 3 GUI checkbox.

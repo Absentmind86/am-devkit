@@ -1,0 +1,4 @@
+{
+  "name": "AM-DevKit sandbox (placeholder)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu"
+}

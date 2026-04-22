@@ -908,7 +908,7 @@ absentmind-devkit/
 
 ## Development Roadmap
 
-### Phase 0 — Foundation (Current)
+### Phase 0 — Foundation
 - [x] Vision and scope defined
 - [x] Layer architecture mapped
 - [x] Profile system designed
@@ -916,8 +916,8 @@ absentmind-devkit/
 - [x] Core/Profile/Extras architecture decided ✅
 - [x] Hardware/Robotics profile scoped ✅
 - [x] Absentmind Mode definition locked ✅
-- [ ] Name locked: **Absentmind's DevKit**
-- [ ] Create GitHub repo
+- [x] Name locked: **Absentmind's DevKit**
+- [x] Create GitHub repo — [Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
 
 ### Phase 1 — Proof of Concept
 - [ ] Layer 0: System scan script (Python + WMI)
@@ -932,19 +932,19 @@ absentmind-devkit/
 - [ ] Post-install report (HTML)
 
 ### Phase 3 — Polish
-- [ ] GUI profile selector (Flet — Python/Flutter based)
-- [ ] Custom Mode with full checkbox interface
-- [ ] Extras selector post-profile
-- [ ] Restore script generation
-- [ ] Dotfile seeding
-- [ ] Obsidian vault template seeding (if Extras selected)
-- [ ] Layer 8.5 Disposable Workspace config generation
+- [x] GUI profile selector (Flet — Python/Flutter based)
+- [x] Custom Mode with catalog exclusion checkboxes (`core/gui.py`)
+- [x] Extras selector post-profile (CLI `--profile extras` + GUI checkbox)
+- [x] Restore script generation (`scripts/restore-winget-from-manifest.ps1` + manifest replay)
+- [x] Dotfile seeding (`core/finalize.py`)
+- [x] Obsidian vault template seeding (Extras + finalize when Obsidian not excluded)
+- [x] Layer 8.5 Disposable Workspace config generation (`core/sandbox.py`)
 
-### Phase 4 — Release
-- [ ] Testing on clean Windows installs (VM workflow)
-- [ ] Documentation
+### Phase 4 — Release (current)
+- [ ] Testing on clean Windows installs — see `docs/RELEASE_TESTING.md`
+- [x] README install / clone URLs — [Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
+- [ ] Documentation polish (ongoing)
 - [ ] GitHub release with signed `.exe` or `.ps1`
-- [ ] Absentmind's Neverending Projects YouTube — build-in-public series
 
 ---
 
@@ -995,4 +995,3 @@ absentmind-devkit/
 ---
 
 *Document maintained by Kyle / Absentmind Studio*
-*Next review: Phase 1 kickoff — after GitHub repo created*

@@ -1,0 +1,8 @@
+{
+  "WPFTweaks": [
+    "WPFTweaksConsumerFeatures",
+    "WPFTweaksWPBT",
+    "WPFTweaksServices",
+    "WPFTweaksTelemetry"
+  ]
+}

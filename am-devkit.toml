@@ -1,0 +1,5 @@
+# AM-DevKit — user-facing configuration
+# Values here are not auto-generated; edit intentionally.
+
+[devkit]
+# version = "0.0.0"
