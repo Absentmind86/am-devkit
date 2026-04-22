@@ -1,11 +1,12 @@
-"""Phase 3 — Flet launcher for AM-DevKit (profile picker + options + catalog exclusions).
+"""Phase 3 — Flet launcher for AM-DevKit (opt-in per-tool selection).
 
 Run from the repository root::
 
     python -m core.gui
 
 Launches ``core.installer`` in a new console on Windows so Rich output stays readable.
-Mirrors CLI flags including ``--reuse-system-profile`` when Layer 0 JSON reuse is enabled.
+State model: a single ``desired_tools: set[str]`` drives the CLI command we emit.
+Profile checkboxes are bulk-select conveniences that add/remove their tools into that set.
 """
 
 from __future__ import annotations
@@ -21,13 +22,24 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+# Standard dev-stack profiles (ordered for Tools-tab rendering).
+STANDARD_PROFILE_IDS: tuple[str, ...] = (
+    "ai-ml",
+    "web-fullstack",
+    "systems",
+    "game-dev",
+    "hardware-robotics",
+)
+
+# Profile checkboxes shown in the left column. "custom" is a view-mode toggle —
+# when on, the Tools tab exposes every stack's tools for cherry-picking.
 PROFILE_DEFS: tuple[tuple[str, str], ...] = (
     ("ai-ml", "AI / ML"),
     ("web-fullstack", "Web / Full-Stack"),
     ("systems", "Systems / Low-Level"),
     ("game-dev", "Game Dev"),
     ("hardware-robotics", "Hardware / Robotics"),
-    ("extras", "Extras — PowerToys, Obsidian, Discord, …"),
+    ("custom", "Custom — cherry-pick from all stacks"),
 )
 
 PROFILE_HINTS: dict[str, str] = {
@@ -36,16 +48,74 @@ PROFILE_HINTS: dict[str, str] = {
     "systems": "Rust, MSVC/shovel-ready C++, CMake, Wireshark — low-level & infra.",
     "game-dev": "Unity Hub, Godot, VS Build Tools, game-focused runtimes.",
     "hardware-robotics": "Arduino, PlatformIO, serial/USB tooling, embedded workflow.",
-    "extras": "Optional desktop apps: PowerToys, Obsidian, OBS, Discord, … (not in Absentmind).",
+    "custom": "Exposes every stack's tools on the Tools tab. Pick exactly what you want.",
 }
+
+PROFILE_DISPLAY: dict[str, str] = {pid: label for pid, label in PROFILE_DEFS}
+
+
+def _primary_profile_of(entry: Any) -> str:
+    """Pick a stable 'primary' profile for a catalog entry, for Tools-tab grouping."""
+    if not entry.profiles:
+        return "common"
+    for p in STANDARD_PROFILE_IDS:
+        if p in entry.profiles:
+            return p
+    if "extras" in entry.profiles:
+        return "extras"
+    return "other"
+
+
+def _catalog_group(primary: str) -> list[Any]:
+    """All catalog entries whose primary profile matches."""
+    from core.install_catalog import WINGET_CATALOG
+
+    return [e for e in WINGET_CATALOG if _primary_profile_of(e) == primary]
+
+
+def _tools_for_profile(profile_id: str) -> list[str]:
+    """Tool ids whose catalog entry lists this profile."""
+    from core.install_catalog import WINGET_CATALOG
+
+    return [e.tool for e in WINGET_CATALOG if e.profiles and profile_id in e.profiles]
+
+
+def _needed_profiles_for(desired: set[str]) -> set[str]:
+    """Which profile ids must be passed so the installer will consider these tools."""
+    from core.install_catalog import WINGET_CATALOG
+
+    needed: set[str] = set()
+    for entry in WINGET_CATALOG:
+        if entry.tool in desired and entry.profiles:
+            needed.update(entry.profiles)
+    return needed
+
+
+def _exclusions_for(desired: set[str], needed_profiles: set[str]) -> list[str]:
+    """Tools the installer would install for these profiles but which the user did not pick."""
+    from core.install_catalog import WINGET_CATALOG
+
+    excl: list[str] = []
+    for entry in WINGET_CATALOG:
+        if entry.profiles is None:
+            continue  # common core — always install, never exclude
+        if entry.tool in desired:
+            continue
+        if entry.applies_to(needed_profiles):
+            excl.append(entry.tool)
+    return excl
 
 
 def _preview_context(ui: dict[str, Any], system_profile: dict[str, Any]) -> Any:
     """Build ``InstallContext`` matching GUI state (for summary text only)."""
     from core.install_context import InstallContext
 
-    profiles = _selected_profile_ids(bool(ui["absentmind"].value), ui["profile_checks"])
-    ex = frozenset(ui["excluded_tools"])
+    desired: set[str] = set(ui["desired_tools"])
+    needed = _needed_profiles_for(desired)
+    exclusions = frozenset(_exclusions_for(desired, needed))
+    # Stable ordered list for display.
+    profiles = sorted(needed)
+
     wsl_default = None
     if ui["enable_wsl"].value and not ui["wsl_skip_distro"].value:
         wsl_default = (ui["wsl_distro"].value or "Ubuntu").strip() or "Ubuntu"
@@ -71,35 +141,23 @@ def _preview_context(ui: dict[str, Any], system_profile: dict[str, Any]) -> Any:
         seed_dotfiles=not bool(ui["skip_dotfiles"].value),
         assume_yes=bool(ui["assume_yes"].value),
         skip_summary=bool(ui["skip_summary"].value),
-        catalog_exclude_tools=ex,
+        catalog_exclude_tools=exclusions,
     )
 
 
-def _selected_profile_ids(
-    absentmind: bool,
-    profile_checks: dict[str, Any],
-) -> list[str]:
-    from core.install_context import merge_profile_args
-
-    if absentmind:
-        return merge_profile_args(absentmind=True, profiles=[])
-    active = [pid for pid, ob in profile_checks.items() if ob.value]
-    merged = merge_profile_args(absentmind=False, profiles=active)
-    return merged if merged else ["systems"]
-
-
 def _argv_for_installer(ui: dict[str, Any]) -> list[str]:
-    """Build argv for ``python -m core.installer`` (only flags and args)."""
+    """Build argv for ``python -m core.installer`` derived from desired_tools."""
     argv: list[str] = []
 
     if ui["dry_run"].value:
         argv.append("--dry-run")
-    if ui["absentmind"].value:
-        argv.append("--absentmind")
-    else:
-        for pid, ob in ui["profile_checks"].items():
-            if ob.value:
-                argv.extend(["--profile", pid])
+
+    desired: set[str] = set(ui["desired_tools"])
+    needed = _needed_profiles_for(desired)
+    for pid in sorted(needed):
+        argv.extend(["--profile", pid])
+    for tool in sorted(_exclusions_for(desired, needed)):
+        argv.extend(["--exclude-catalog-tool", tool])
 
     if ui["run_sanitation"].value:
         argv.append("--run-sanitation")
@@ -133,19 +191,6 @@ def _argv_for_installer(ui: dict[str, Any]) -> list[str]:
         if str(p):
             argv.extend(["--reuse-system-profile", str(p.resolve())])
 
-    sel = set(
-        _selected_profile_ids(
-            bool(ui["absentmind"].value),
-            ui["profile_checks"],
-        )
-    )
-    excluded: set[str] = ui["excluded_tools"]
-    from core.install_catalog import WINGET_CATALOG
-
-    for entry in WINGET_CATALOG:
-        if entry.applies_to(sel) and entry.tool in excluded:
-            argv.extend(["--exclude-catalog-tool", entry.tool])
-
     return argv
 
 
@@ -165,73 +210,32 @@ def _format_cli_line(argv: list[str]) -> str:
 def main_gui() -> None:
     import flet as ft
 
-    excluded_tools: set[str] = set()
+    desired_tools: set[str] = set()
     profile_checks: dict[str, ft.Checkbox] = {}
-
-    def build_exclusion_column(
-        absentmind_cb: ft.Checkbox,
-        prof_checks: dict[str, ft.Checkbox],
-    ) -> ft.Column:
-        from core.install_catalog import WINGET_CATALOG
-
-        sel = set(_selected_profile_ids(absentmind_cb.value, prof_checks))
-        controls: list[ft.Control] = [
-            ft.Text(
-                "Uncheck to exclude a winget catalog package for this profile selection.",
-                size=13,
-            ),
-        ]
-        for entry in WINGET_CATALOG:
-            applies = entry.applies_to(sel)
-            if not applies:
-                continue  # hide tools that don't apply to the current profile selection
-            should_install = entry.tool not in excluded_tools
-            cb = ft.Checkbox(
-                label=f"{entry.tool}  ({entry.layer})",
-                value=should_install,
-                tooltip=entry.winget_id,
-            )
-
-            def make_handler(tool: str):
-                def _on_change(e: ft.ControlEvent) -> None:
-                    if e.control.value:
-                        excluded_tools.discard(tool)
-                    else:
-                        excluded_tools.add(tool)
-
-                return _on_change
-
-            cb.on_change = make_handler(entry.tool)
-            controls.append(cb)
-        return ft.Column(
-            controls,
-            spacing=4,
-            scroll=ft.ScrollMode.AUTO,
-            expand=True,
-        )
+    tool_checkboxes: dict[str, ft.Checkbox] = {}
 
     def main(page: ft.Page) -> None:
         page.title = "Absentmind's DevKit"
         page.theme_mode = ft.ThemeMode.DARK
         page.padding = 16
-        page.window.width = 760
-        page.window.height = 880
+        page.window.width = 900
+        page.window.height = 900
 
         absentmind_cb = ft.Checkbox(
-            label="Absentmind Mode — select all core profiles (AI, Web, Systems, Game, Hardware). Extras stays separate.",
+            label="Absentmind Mode — pre-select all core stacks (AI, Web, Systems, Game, Hardware).",
             value=False,
         )
 
         for pid, title in PROFILE_DEFS:
             profile_checks[pid] = ft.Checkbox(
                 label=title,
-                value=(pid == "systems"),
+                value=False,
                 tooltip=PROFILE_HINTS.get(pid),
             )
 
         dry_run = ft.Switch(label="Dry run (no destructive writes)", value=True)
         run_sanitation = ft.Switch(
-            label="Run Windows sanitation (CTT WinUtil — disruptive)",
+            label="Run Windows sanitation (CTT WinUtil — optional, disruptive)",
             value=False,
         )
         sanitation_preset_dd = ft.Dropdown(
@@ -268,8 +272,8 @@ def main_gui() -> None:
         )
 
         ui: dict[str, Any] = {
-            "absentmind": absentmind_cb,
             "profile_checks": profile_checks,
+            "desired_tools": desired_tools,
             "dry_run": dry_run,
             "run_sanitation": run_sanitation,
             "sanitation_preset": sanitation_preset_dd,
@@ -284,7 +288,6 @@ def main_gui() -> None:
             "wsl_skip_distro": wsl_skip,
             "reuse_layer0": reuse_layer0,
             "reuse_layer0_path": reuse_layer0_path,
-            "excluded_tools": excluded_tools,
         }
 
         preview_field = ft.TextField(
@@ -320,44 +323,184 @@ def main_gui() -> None:
             size=13,
         )
 
-        exclusion_host = ft.Column(
-            controls=[build_exclusion_column(absentmind_cb, profile_checks)],
+        selected_count_text = ft.Text("", size=13, italic=True)
+
+        def update_selected_count() -> None:
+            n = len(desired_tools)
+            selected_count_text.value = (
+                f"{n} tool{'s' if n != 1 else ''} currently selected for install."
+            )
+            selected_count_text.update()
+
+        def on_tool_toggle(tool: str, is_checked: bool) -> None:
+            if is_checked:
+                desired_tools.add(tool)
+            else:
+                desired_tools.discard(tool)
+            update_selected_count()
+            sync_all_previews()
+
+        def make_tool_checkbox(entry: Any) -> ft.Checkbox:
+            cb = ft.Checkbox(
+                label=f"{entry.tool}  ({entry.layer})",
+                value=entry.tool in desired_tools,
+                tooltip=entry.winget_id,
+            )
+
+            def _handler(e: ft.ControlEvent) -> None:
+                on_tool_toggle(entry.tool, bool(e.control.value))
+
+            cb.on_change = _handler
+            return cb
+
+        tools_host = ft.Column(
+            controls=[],
             expand=True,
             scroll=ft.ScrollMode.AUTO,
+            spacing=6,
         )
+
+        def select_all_extras(_: ft.ControlEvent | None = None) -> None:
+            from core.install_catalog import WINGET_CATALOG
+
+            for entry in WINGET_CATALOG:
+                if entry.profiles and "extras" in entry.profiles:
+                    desired_tools.add(entry.tool)
+                    cb = tool_checkboxes.get(entry.tool)
+                    if cb is not None:
+                        cb.value = True
+                        cb.update()
+            update_selected_count()
+            sync_all_previews()
+
+        def clear_all_tools(_: ft.ControlEvent | None = None) -> None:
+            desired_tools.clear()
+            for cb in tool_checkboxes.values():
+                cb.value = False
+                cb.update()
+            update_selected_count()
+            sync_all_previews()
+
+        def rebuild_tools_column() -> None:
+            tools_host.controls.clear()
+            tool_checkboxes.clear()
+
+            custom_mode = bool(profile_checks["custom"].value)
+            active_standard_profiles = {
+                pid for pid in STANDARD_PROFILE_IDS if profile_checks[pid].value
+            }
+
+            tools_host.controls.append(
+                ft.Text(
+                    "Opt-in: every tool starts unchecked. Tick a profile on the Profiles tab "
+                    "to bulk-select a stack, or cherry-pick below.",
+                    size=12,
+                    italic=True,
+                )
+            )
+
+            any_standard_section = False
+            for profile_id in STANDARD_PROFILE_IDS:
+                entries = _catalog_group(profile_id)
+                if not entries:
+                    continue
+                if not (custom_mode or profile_id in active_standard_profiles):
+                    continue
+                any_standard_section = True
+                tools_host.controls.append(ft.Divider())
+                tools_host.controls.append(
+                    ft.Text(
+                        PROFILE_DISPLAY.get(profile_id, profile_id),
+                        weight=ft.FontWeight.BOLD,
+                        size=15,
+                    )
+                )
+                for entry in entries:
+                    cb = make_tool_checkbox(entry)
+                    tool_checkboxes[entry.tool] = cb
+                    tools_host.controls.append(cb)
+
+            if not any_standard_section:
+                tools_host.controls.append(
+                    ft.Text(
+                        "No stacks selected yet. Tick a profile on the Profiles tab, or tick "
+                        "‘Custom — cherry-pick from all stacks’ to see everything.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    )
+                )
+
+            # Extras section — always visible, individually selectable.
+            extras = _catalog_group("extras")
+            if extras:
+                tools_host.controls.append(ft.Divider())
+                tools_host.controls.append(
+                    ft.Row(
+                        [
+                            ft.Text("Extras (personal-preference apps)", weight=ft.FontWeight.BOLD, size=15),
+                            ft.OutlinedButton("Select all extras", on_click=select_all_extras),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    )
+                )
+                tools_host.controls.append(
+                    ft.Text(
+                        "Each extra is individually opt-in. Nothing here is pre-checked.",
+                        size=12,
+                        italic=True,
+                    )
+                )
+                for entry in extras:
+                    cb = make_tool_checkbox(entry)
+                    tool_checkboxes[entry.tool] = cb
+                    tools_host.controls.append(cb)
+
+            tools_host.update()
 
         def sync_all_previews() -> None:
             from core.pre_install_summary import format_pre_install_summary_text
 
             preview_field.value = _format_cli_line(_argv_for_installer(ui))
-            summary_field.value = format_pre_install_summary_text(_preview_context(ui, layer0_profile))
+            summary_field.value = format_pre_install_summary_text(
+                _preview_context(ui, layer0_profile)
+            )
             preview_field.update()
             summary_field.update()
 
-        def refresh_exclusions() -> None:
-            exclusion_host.controls.clear()
-            exclusion_host.controls.append(
-                build_exclusion_column(absentmind_cb, profile_checks)
-            )
-            exclusion_host.update()
+        def on_profile_toggle(profile_id: str, is_checked: bool) -> None:
+            # "custom" is a view toggle only; it does not add tools.
+            if profile_id != "custom":
+                tools = _tools_for_profile(profile_id)
+                for t in tools:
+                    if is_checked:
+                        desired_tools.add(t)
+                    else:
+                        desired_tools.discard(t)
+            rebuild_tools_column()
+            update_selected_count()
             sync_all_previews()
 
-        def sync_profile_disabled() -> None:
-            for cb in profile_checks.values():
-                cb.disabled = absentmind_cb.value
+        def wire_profile_checkbox(pid: str, cb: ft.Checkbox) -> None:
+            def _handler(e: ft.ControlEvent) -> None:
+                on_profile_toggle(pid, bool(e.control.value))
+
+            cb.on_change = _handler
+
+        for pid, cb in profile_checks.items():
+            wire_profile_checkbox(pid, cb)
 
         def on_absentmind_change(_: ft.ControlEvent | None = None) -> None:
-            sync_profile_disabled()
-            refresh_exclusions()
-            page.update()
+            if absentmind_cb.value:
+                for pid in STANDARD_PROFILE_IDS:
+                    cb = profile_checks[pid]
+                    if not cb.value:
+                        cb.value = True
+                        cb.update()
+                        on_profile_toggle(pid, True)
+            # Absentmind does not unselect anything when unchecked — user manages manually.
 
         absentmind_cb.on_change = on_absentmind_change
-
-        def on_profile_change(_: ft.ControlEvent) -> None:
-            refresh_exclusions()
-
-        for cb in profile_checks.values():
-            cb.on_change = on_profile_change
 
         def bind_switch(_: ft.ControlEvent | None = None) -> None:
             sync_all_previews()
@@ -435,6 +578,14 @@ def main_gui() -> None:
 
         def run_installer_new_console(_: ft.ControlEvent) -> None:
             sync_all_previews()
+            if not desired_tools:
+                snack.content = ft.Text(
+                    "No tools selected. Tick a profile or cherry-pick individual tools "
+                    "before starting the install."
+                )
+                snack.open = True
+                page.update()
+                return
             if reuse_layer0.value:
                 rp = Path(str(reuse_layer0_path.value or "").strip())
                 if not rp.is_file():
@@ -474,8 +625,13 @@ def main_gui() -> None:
             content=ft.Column(
                 [
                     ft.Text("Profiles", weight=ft.FontWeight.BOLD, size=18),
+                    ft.Text(
+                        "Ticking a profile bulk-adds its tools to your install. Individual tools "
+                        "are still editable on the Tools tab.",
+                        size=12,
+                        italic=True,
+                    ),
                     absentmind_cb,
-                    ft.Text("Profiles (multi-select)", size=13),
                     ft.Row(
                         wrap=True,
                         spacing=12,
@@ -518,21 +674,23 @@ def main_gui() -> None:
             bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.WHITE),
         )
 
-        custom_tab = ft.Container(
+        tools_tab = ft.Container(
             content=ft.Column(
                 [
-                    ft.Text(
-                        "Tools & extras — per-item selection",
-                        weight=ft.FontWeight.BOLD,
-                        size=18,
+                    ft.Row(
+                        [
+                            ft.Text(
+                                "Tools & extras — per-item selection",
+                                weight=ft.FontWeight.BOLD,
+                                size=18,
+                            ),
+                            ft.OutlinedButton("Clear all", on_click=clear_all_tools),
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
-                    ft.Text(
-                        "Only tools that apply to your current profile selection are shown. "
-                        "Uncheck any you don't want installed.",
-                        size=12,
-                        italic=True,
-                    ),
-                    exclusion_host,
+                    selected_count_text,
+                    tools_host,
                 ],
                 spacing=8,
                 expand=True,
@@ -550,11 +708,6 @@ def main_gui() -> None:
                         [
                             ft.FilledButton("Run system scan", on_click=run_system_scan),
                             ft.OutlinedButton("Copy summary", on_click=copy_summary_text),
-                            ft.Text(
-                                "Hover profile checkboxes on the next tab for short descriptions.",
-                                size=12,
-                                italic=True,
-                            ),
                         ],
                         spacing=16,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -571,7 +724,7 @@ def main_gui() -> None:
         )
 
         tabs = ft.Tabs(
-            selected_index=0,
+            selected_index=1,
             expand=1,
             tabs=[
                 ft.Tab(
@@ -593,7 +746,7 @@ def main_gui() -> None:
                 ),
                 ft.Tab(
                     text="Tools & extras",
-                    content=custom_tab,
+                    content=tools_tab,
                 ),
             ],
         )
@@ -618,7 +771,7 @@ def main_gui() -> None:
                             weight=ft.FontWeight.BOLD,
                         ),
                         ft.Text(
-                            "Developer toolkit installer — choose profiles, then click START INSTALL.",
+                            "Developer toolkit installer — pick profiles or cherry-pick tools, then click START INSTALL.",
                             size=13,
                         ),
                     ],
@@ -650,7 +803,8 @@ def main_gui() -> None:
         )
 
         load_layer0_from_disk()
-        sync_profile_disabled()
+        rebuild_tools_column()
+        update_selected_count()
         sync_all_previews()
 
     ft.app(target=main)
