@@ -136,14 +136,59 @@ function Install-PythonRequirements {
         Write-Host "    pip self-upgrade exited $LASTEXITCODE (continuing)." -ForegroundColor Yellow
     }
 
-    # Uninstall any leftover flet sibling packages from previous versions.
-    # Flet split into flet-core / flet-desktop in 0.26+; pinning back to
-    # 0.25.x conflicts with those stragglers if they are not removed first.
-    $uninstallArgs = @()
-    if ($Launcher.Args.Count -gt 0) { $uninstallArgs += $Launcher.Args }
-    $uninstallArgs += @('-m', 'pip', 'uninstall', '-y', 'flet', 'flet-core', 'flet-desktop', 'flet-web', 'flet-runtime')
-    & $Launcher.Exe @uninstallArgs 1>$null 2>$null
-    # Ignore exit code — packages may not be installed, which is fine.
+    # Detect any pre-existing flet-family packages. We pin to flet 0.25.2
+    # (see requirements.txt for rationale); any other version must be
+    # removed first, and we ask the user before downgrading.
+    $fletPackages = @('flet', 'flet-core', 'flet-desktop', 'flet-web', 'flet-runtime')
+    $detected = @()
+    foreach ($pkg in $fletPackages) {
+        $showArgs = @()
+        if ($Launcher.Args.Count -gt 0) { $showArgs += $Launcher.Args }
+        $showArgs += @('-m', 'pip', 'show', $pkg)
+        $showOutput = & $Launcher.Exe @showArgs 2>$null
+        if ($LASTEXITCODE -eq 0 -and $showOutput) {
+            $versionLine = ($showOutput | Where-Object { $_ -match '^Version:' } | Select-Object -First 1)
+            $version = if ($versionLine) { ($versionLine -replace '^Version:\s*', '').Trim() } else { '?' }
+            $detected += [pscustomobject]@{ Name = $pkg; Version = $version }
+        }
+    }
+
+    $needsDowngrade = $false
+    foreach ($d in $detected) {
+        if ($d.Name -ne 'flet' -or $d.Version -ne '0.25.2') {
+            $needsDowngrade = $true
+            break
+        }
+    }
+
+    if ($needsDowngrade) {
+        Write-Host ''
+        Write-Host 'Heads up: incompatible Flet packages are already installed on this Python:' -ForegroundColor Yellow
+        foreach ($d in $detected) {
+            Write-Host ("    {0} {1}" -f $d.Name, $d.Version) -ForegroundColor DarkGray
+        }
+        Write-Host ''
+        Write-Host 'AM-DevKit pins flet to 0.25.2 (a stable version with a known-good GUI API).' -ForegroundColor White
+        Write-Host 'To proceed, the installer will uninstall the above and install flet 0.25.2.' -ForegroundColor White
+        Write-Host 'If you use flet for other projects, you may need to reinstall your preferred' -ForegroundColor White
+        Write-Host 'version afterward (e.g., pip install flet==0.84.0).' -ForegroundColor White
+        Write-Host ''
+
+        if (-not $Yes) {
+            $confirm = Read-Host 'Downgrade flet and continue? [Y/N]'
+            if ($confirm -notmatch '^[Yy]') {
+                throw 'Aborted by user. No Python packages were changed.'
+            }
+        } else {
+            Write-Host '(-Yes passed — downgrading without prompt.)' -ForegroundColor DarkGray
+        }
+
+        $uninstallArgs = @()
+        if ($Launcher.Args.Count -gt 0) { $uninstallArgs += $Launcher.Args }
+        $uninstallArgs += @('-m', 'pip', 'uninstall', '-y') + $fletPackages
+        & $Launcher.Exe @uninstallArgs 1>$null 2>$null
+        # Ignore exit code — some packages may not be installed, which is fine.
+    }
 
     $pipArgs = @()
     if ($Launcher.Args.Count -gt 0) { $pipArgs += $Launcher.Args }
