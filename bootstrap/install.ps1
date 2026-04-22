@@ -136,20 +136,37 @@ function Install-PythonRequirements {
         Write-Host "    pip self-upgrade exited $LASTEXITCODE (continuing)." -ForegroundColor Yellow
     }
 
-    # Detect any pre-existing flet-family packages. We pin to flet 0.25.2
-    # (see requirements.txt for rationale); any other version must be
-    # removed first, and we ask the user before downgrading.
+    # Detect any pre-existing flet-family packages via a single `pip list`.
+    # We pin to flet 0.25.2 (see requirements.txt for rationale); any other
+    # version must be removed first, and we ask the user before downgrading.
+    # Using `pip list --format=json` avoids the per-package "not found"
+    # warnings that `pip show` emits to stderr (which PowerShell 5.1 turns
+    # into NativeCommandError records under ErrorActionPreference=Stop).
     $fletPackages = @('flet', 'flet-core', 'flet-desktop', 'flet-web', 'flet-runtime')
+    $installed = @{}
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $listArgs = @()
+        if ($Launcher.Args.Count -gt 0) { $listArgs += $Launcher.Args }
+        $listArgs += @('-m', 'pip', 'list', '--format=json', '--disable-pip-version-check')
+        $listJson = (& $Launcher.Exe @listArgs 2>$null) -join "`n"
+        if ($listJson) {
+            $pkgs = $listJson | ConvertFrom-Json
+            foreach ($p in $pkgs) {
+                $installed[$p.name.ToLower()] = $p.version
+            }
+        }
+    } catch {
+        Write-Host "    Could not enumerate pip packages: $_" -ForegroundColor Yellow
+    } finally {
+        $ErrorActionPreference = $prevEAP
+    }
+
     $detected = @()
     foreach ($pkg in $fletPackages) {
-        $showArgs = @()
-        if ($Launcher.Args.Count -gt 0) { $showArgs += $Launcher.Args }
-        $showArgs += @('-m', 'pip', 'show', $pkg)
-        $showOutput = & $Launcher.Exe @showArgs 2>$null
-        if ($LASTEXITCODE -eq 0 -and $showOutput) {
-            $versionLine = ($showOutput | Where-Object { $_ -match '^Version:' } | Select-Object -First 1)
-            $version = if ($versionLine) { ($versionLine -replace '^Version:\s*', '').Trim() } else { '?' }
-            $detected += [pscustomobject]@{ Name = $pkg; Version = $version }
+        if ($installed.ContainsKey($pkg.ToLower())) {
+            $detected += [pscustomobject]@{ Name = $pkg; Version = $installed[$pkg.ToLower()] }
         }
     }
 
