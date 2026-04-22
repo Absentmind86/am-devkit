@@ -115,6 +115,82 @@ def count_winget_actions(
     )
 
 
+# Approximate installed footprint in MB for catalog entries. These are rough
+# order-of-magnitude numbers — fine for a ballpark summary, not disk planning.
+# Missing entries default to 100 MB via ``estimate_tool_disk_mb``.
+TOOL_DISK_MB: Final[dict[str, int]] = {
+    # Layer 7 utilities
+    "7zip": 10,
+    "notepadplusplus": 30,
+    "everything": 15,
+    "devtoys": 120,
+    "winmerge": 40,
+    "dbeaver": 450,
+    "bruno": 220,
+    "fork-git-client": 200,
+    "keepassxc": 110,
+    "sysinternals": 100,
+    "wireshark": 180,
+    "nmap": 60,
+    "arduino-ide": 500,
+    # Layer 6 devops
+    "postgresql-17": 550,
+    "redis": 5,
+    "mkcert": 10,
+    "ngrok": 25,
+    "aws-cli": 90,
+    "google-cloud-sdk": 350,
+    "azure-cli": 850,
+    "podman-desktop": 450,
+    # Layer 4 languages
+    "nvm-windows": 10,
+    "golang": 550,
+    "temurin-jdk21": 430,
+    "dotnet-sdk-8": 650,
+    "cmake": 120,
+    "ninja": 5,
+    "unity-hub": 220,
+    "godot": 120,
+    # Layer 3 editors
+    "jetbrains-toolbox": 500,
+    # Extras
+    "powertoys": 320,
+    "obsidian": 220,
+    "obs-studio": 320,
+    "sharex": 110,
+    "hwinfo": 40,
+    "wiztree": 5,
+    "vlc": 110,
+    "bitwarden": 180,
+    "autohotkey": 20,
+    "discord": 220,
+    "ffmpeg": 250,
+}
+
+
+def estimate_tool_disk_mb(tool: str) -> int:
+    """Approximate install footprint for a single catalog tool (MB)."""
+    return TOOL_DISK_MB.get(tool, 100)
+
+
+def estimate_catalog_disk_mb(
+    selected_profiles: Sequence[str],
+    *,
+    catalog_excludes: Sequence[str] | frozenset[str] | set[str] | None = None,
+) -> int:
+    """Sum of approximate MB for every catalog entry this run would install."""
+    sel = set(selected_profiles)
+    ex = set(catalog_excludes or ())
+    total = 0
+    for e in WINGET_CATALOG:
+        if e.tool in ex:
+            continue
+        if not e.applies_to(sel):
+            continue
+        total += estimate_tool_disk_mb(e.tool)
+    return total
+
+
 def _exe_found(name: str) -> bool:
     return shutil.which(name) is not None
 

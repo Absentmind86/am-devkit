@@ -31,6 +31,18 @@ STANDARD_PROFILE_IDS: tuple[str, ...] = (
     "hardware-robotics",
 )
 
+# Preference order for deriving profile flags when a tool was picked in Custom
+# mode without the user explicitly checking any profile. Lightweight profiles
+# come first so cherry-picking a shared tool (e.g. dbeaver, which is in both
+# ai-ml and web-fullstack) does not drag in the heavier ML layer by accident.
+PROFILE_PREFERENCE: tuple[str, ...] = (
+    "web-fullstack",
+    "systems",
+    "hardware-robotics",
+    "game-dev",
+    "ai-ml",
+)
+
 # Profile checkboxes shown in the left column. "custom" is a view-mode toggle —
 # when on, the Tools tab exposes every stack's tools for cherry-picking.
 PROFILE_DEFS: tuple[tuple[str, str], ...] = (
@@ -51,57 +63,96 @@ PROFILE_HINTS: dict[str, str] = {
     "custom": "Exposes every stack's tools on the Tools tab. Pick exactly what you want.",
 }
 
+# Non-catalog add-ons each profile triggers. Surfaced in the info dialog and
+# as a note above the profile's section on the Tools tab.
+PROFILE_EXTRAS_NOTES: dict[str, str] = {
+    "ai-ml": (
+        "Also installed automatically when ai-ml is selected:\n"
+        "  • GPU-matched PyTorch wheels (if the PyTorch-wheels option is on)\n"
+        "  • Ollama runtime (winget)\n"
+        "  • ML pip base: numpy, pandas, matplotlib, scikit-learn, jupyter, ipython "
+        "(if the ML-base option is on)\n"
+        "These are not checkboxes — they're driven by the ML toggles in Install options."
+    ),
+    "web-fullstack": (
+        "Also installed automatically when web-fullstack is selected:\n"
+        "  • Docker Desktop (infrastructure layer)\n"
+        "  • Node LTS via nvm-windows after nvm installs"
+    ),
+    "systems": (
+        "Also installed automatically when systems is selected:\n"
+        "  • Rust toolchain via rustup\n"
+        "  • Visual Studio Build Tools / MSVC compiler"
+    ),
+    "game-dev": (
+        "Also installed automatically when game-dev is selected:\n"
+        "  • Visual Studio Build Tools (shared with systems)"
+    ),
+    "hardware-robotics": (
+        "Also installed automatically when hardware-robotics is selected:\n"
+        "  • pyserial via pip"
+    ),
+}
+
 PROFILE_DISPLAY: dict[str, str] = {pid: label for pid, label in PROFILE_DEFS}
 
 
-def _primary_profile_of(entry: Any) -> str:
-    """Pick a stable 'primary' profile for a catalog entry, for Tools-tab grouping."""
-    if not entry.profiles:
-        return "common"
-    for p in STANDARD_PROFILE_IDS:
-        if p in entry.profiles:
-            return p
-    if "extras" in entry.profiles:
-        return "extras"
-    return "other"
-
-
-def _catalog_group(primary: str) -> list[Any]:
-    """All catalog entries whose primary profile matches."""
+def _entries_for_profile(profile_id: str) -> list[Any]:
+    """Catalog entries that list this profile (in catalog order)."""
     from core.install_catalog import WINGET_CATALOG
 
-    return [e for e in WINGET_CATALOG if _primary_profile_of(e) == primary]
+    return [e for e in WINGET_CATALOG if e.profiles and profile_id in e.profiles]
 
 
 def _tools_for_profile(profile_id: str) -> list[str]:
     """Tool ids whose catalog entry lists this profile."""
+    return [e.tool for e in _entries_for_profile(profile_id)]
+
+
+def _checked_standard_profiles(ui: dict[str, Any]) -> set[str]:
+    return {pid for pid in STANDARD_PROFILE_IDS if ui["profile_checks"][pid].value}
+
+
+def _needed_profiles_for(ui: dict[str, Any]) -> list[str]:
+    """Profiles to pass to the installer.
+
+    Starts with the profiles the user explicitly checked on the Profiles tab.
+    Any desired tool not already covered by that set adds its preferred profile
+    (lightest of its allowed profiles, per PROFILE_PREFERENCE) so the installer
+    will actually run it.
+    """
     from core.install_catalog import WINGET_CATALOG
 
-    return [e.tool for e in WINGET_CATALOG if e.profiles and profile_id in e.profiles]
+    checked = _checked_standard_profiles(ui)
+    desired = set(ui["desired_tools"])
 
-
-def _needed_profiles_for(desired: set[str]) -> set[str]:
-    """Which profile ids must be passed so the installer will consider these tools."""
-    from core.install_catalog import WINGET_CATALOG
-
-    needed: set[str] = set()
+    derived: set[str] = set()
     for entry in WINGET_CATALOG:
-        if entry.tool in desired and entry.profiles:
-            needed.update(entry.profiles)
-    return needed
+        if entry.tool not in desired or not entry.profiles:
+            continue
+        if entry.profiles & checked:
+            continue  # already covered by a user-checked profile
+        for pref in PROFILE_PREFERENCE:
+            if pref in entry.profiles:
+                derived.add(pref)
+                break
+
+    return sorted(checked | derived)
 
 
-def _exclusions_for(desired: set[str], needed_profiles: set[str]) -> list[str]:
-    """Tools the installer would install for these profiles but which the user did not pick."""
+def _exclusions_for(ui: dict[str, Any], needed_profiles: list[str]) -> list[str]:
+    """Catalog tools the installer would otherwise install that the user did not pick."""
     from core.install_catalog import WINGET_CATALOG
 
+    desired = set(ui["desired_tools"])
+    sel = set(needed_profiles)
     excl: list[str] = []
     for entry in WINGET_CATALOG:
         if entry.profiles is None:
             continue  # common core — always install, never exclude
         if entry.tool in desired:
             continue
-        if entry.applies_to(needed_profiles):
+        if entry.applies_to(sel):
             excl.append(entry.tool)
     return excl
 
@@ -110,11 +161,9 @@ def _preview_context(ui: dict[str, Any], system_profile: dict[str, Any]) -> Any:
     """Build ``InstallContext`` matching GUI state (for summary text only)."""
     from core.install_context import InstallContext
 
-    desired: set[str] = set(ui["desired_tools"])
-    needed = _needed_profiles_for(desired)
-    exclusions = frozenset(_exclusions_for(desired, needed))
-    # Stable ordered list for display.
-    profiles = sorted(needed)
+    needed = _needed_profiles_for(ui)
+    exclusions = frozenset(_exclusions_for(ui, needed))
+    profiles = list(needed)
 
     wsl_default = None
     if ui["enable_wsl"].value and not ui["wsl_skip_distro"].value:
@@ -152,11 +201,10 @@ def _argv_for_installer(ui: dict[str, Any]) -> list[str]:
     if ui["dry_run"].value:
         argv.append("--dry-run")
 
-    desired: set[str] = set(ui["desired_tools"])
-    needed = _needed_profiles_for(desired)
-    for pid in sorted(needed):
+    needed = _needed_profiles_for(ui)
+    for pid in needed:
         argv.extend(["--profile", pid])
-    for tool in sorted(_exclusions_for(desired, needed)):
+    for tool in sorted(_exclusions_for(ui, needed)):
         argv.extend(["--exclude-catalog-tool", tool])
 
     if ui["run_sanitation"].value:
@@ -230,7 +278,79 @@ def main_gui() -> None:
             profile_checks[pid] = ft.Checkbox(
                 label=title,
                 value=False,
-                tooltip=PROFILE_HINTS.get(pid),
+            )
+
+        # One dialog instance is reused for every profile info popup. Content
+        # is swapped in before each open.
+        info_dialog_title = ft.Text("", weight=ft.FontWeight.BOLD, size=16)
+        info_dialog_body = ft.Column(
+            [],
+            tight=True,
+            spacing=4,
+            scroll=ft.ScrollMode.AUTO,
+        )
+
+        def close_info_dialog(_: ft.ControlEvent | None = None) -> None:
+            info_dialog.open = False
+            page.update()
+
+        info_dialog = ft.AlertDialog(
+            modal=True,
+            title=info_dialog_title,
+            content=ft.Container(content=info_dialog_body, width=520, height=420),
+            actions=[ft.TextButton("Close", on_click=close_info_dialog)],
+        )
+
+        def open_profile_info(profile_id: str) -> None:
+            info_dialog_title.value = f"{PROFILE_DISPLAY.get(profile_id, profile_id)} — what installs"
+            info_dialog_body.controls.clear()
+
+            info_dialog_body.controls.append(
+                ft.Text(PROFILE_HINTS.get(profile_id, ""), size=12, italic=True)
+            )
+
+            if profile_id == "custom":
+                info_dialog_body.controls.append(
+                    ft.Text(
+                        "Custom is a view toggle. Turning it on exposes every stack's "
+                        "tools on the Tools tab so you can cherry-pick. It does not add "
+                        "any tools to the install on its own.",
+                        size=12,
+                    )
+                )
+            else:
+                entries = _entries_for_profile(profile_id)
+                if entries:
+                    info_dialog_body.controls.append(ft.Divider())
+                    info_dialog_body.controls.append(
+                        ft.Text(
+                            f"Catalog tools ({len(entries)}):",
+                            weight=ft.FontWeight.BOLD,
+                            size=13,
+                        )
+                    )
+                    for e in entries:
+                        info_dialog_body.controls.append(
+                            ft.Text(f"  • {e.tool}  ({e.layer})  —  {e.winget_id}", size=12)
+                        )
+                note = PROFILE_EXTRAS_NOTES.get(profile_id)
+                if note:
+                    info_dialog_body.controls.append(ft.Divider())
+                    info_dialog_body.controls.append(
+                        ft.Text(note, size=12)
+                    )
+
+            if info_dialog not in page.overlay:
+                page.overlay.append(info_dialog)
+            info_dialog.open = True
+            page.update()
+
+        def make_info_button(profile_id: str) -> ft.IconButton:
+            return ft.IconButton(
+                icon=ft.Icons.INFO_OUTLINE,
+                tooltip=f"Show what installs with {PROFILE_DISPLAY.get(profile_id, profile_id)}",
+                icon_size=18,
+                on_click=lambda e, pid=profile_id: open_profile_info(pid),
             )
 
         dry_run = ft.Switch(label="Dry run (no destructive writes)", value=True)
@@ -324,13 +444,15 @@ def main_gui() -> None:
         )
 
         selected_count_text = ft.Text("", size=13, italic=True)
+        start_bar_count_text = ft.Text("", size=13, weight=ft.FontWeight.W_500)
 
         def update_selected_count() -> None:
             n = len(desired_tools)
-            selected_count_text.value = (
-                f"{n} tool{'s' if n != 1 else ''} currently selected for install."
-            )
+            msg = f"{n} tool{'s' if n != 1 else ''} currently selected for install."
+            selected_count_text.value = msg
+            start_bar_count_text.value = msg
             selected_count_text.update()
+            start_bar_count_text.update()
 
         def on_tool_toggle(tool: str, is_checked: bool) -> None:
             if is_checked:
@@ -389,6 +511,12 @@ def main_gui() -> None:
             active_standard_profiles = {
                 pid for pid in STANDARD_PROFILE_IDS if profile_checks[pid].value
             }
+            # When Custom is on, show every stack so the user can cherry-pick.
+            visible_profiles = (
+                STANDARD_PROFILE_IDS if custom_mode else tuple(
+                    pid for pid in STANDARD_PROFILE_IDS if pid in active_standard_profiles
+                )
+            )
 
             tools_host.controls.append(
                 ft.Text(
@@ -400,11 +528,13 @@ def main_gui() -> None:
             )
 
             any_standard_section = False
-            for profile_id in STANDARD_PROFILE_IDS:
-                entries = _catalog_group(profile_id)
+            already_rendered: set[str] = set()
+            for profile_id in visible_profiles:
+                entries = [
+                    e for e in _entries_for_profile(profile_id)
+                    if e.tool not in already_rendered
+                ]
                 if not entries:
-                    continue
-                if not (custom_mode or profile_id in active_standard_profiles):
                     continue
                 any_standard_section = True
                 tools_host.controls.append(ft.Divider())
@@ -415,23 +545,34 @@ def main_gui() -> None:
                         size=15,
                     )
                 )
+                note = PROFILE_EXTRAS_NOTES.get(profile_id)
+                if note:
+                    tools_host.controls.append(
+                        ft.Container(
+                            content=ft.Text(note, size=12),
+                            padding=ft.padding.only(left=4, right=4, top=2, bottom=4),
+                            bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.BLUE),
+                            border_radius=6,
+                        )
+                    )
                 for entry in entries:
                     cb = make_tool_checkbox(entry)
                     tool_checkboxes[entry.tool] = cb
                     tools_host.controls.append(cb)
+                    already_rendered.add(entry.tool)
 
             if not any_standard_section:
                 tools_host.controls.append(
                     ft.Text(
                         "No stacks selected yet. Tick a profile on the Profiles tab, or tick "
-                        "‘Custom — cherry-pick from all stacks’ to see everything.",
+                        "'Custom — cherry-pick from all stacks' to see everything.",
                         size=12,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     )
                 )
 
             # Extras section — always visible, individually selectable.
-            extras = _catalog_group("extras")
+            extras = _entries_for_profile("extras")
             if extras:
                 tools_host.controls.append(ft.Divider())
                 tools_host.controls.append(
@@ -621,22 +762,32 @@ def main_gui() -> None:
             snack.open = True
             page.update()
 
+        profile_rows: list[ft.Control] = []
+        for pid, _title in PROFILE_DEFS:
+            profile_rows.append(
+                ft.Row(
+                    [
+                        profile_checks[pid],
+                        make_info_button(pid),
+                    ],
+                    spacing=4,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+            )
+
         profiles_card = ft.Container(
             content=ft.Column(
                 [
                     ft.Text("Profiles", weight=ft.FontWeight.BOLD, size=18),
                     ft.Text(
                         "Ticking a profile bulk-adds its tools to your install. Individual tools "
-                        "are still editable on the Tools tab.",
+                        "are still editable on the Tools tab. Click the ⓘ button on any profile "
+                        "to see exactly what it installs.",
                         size=12,
                         italic=True,
                     ),
                     absentmind_cb,
-                    ft.Row(
-                        wrap=True,
-                        spacing=12,
-                        controls=list(profile_checks.values()),
-                    ),
+                    ft.Column(profile_rows, spacing=2),
                 ],
                 spacing=8,
             ),
@@ -761,27 +912,36 @@ def main_gui() -> None:
             ),
         )
 
-        header = ft.Row(
+        header = ft.Column(
             [
-                ft.Column(
-                    [
-                        ft.Text(
-                            "Absentmind's DevKit",
-                            size=22,
-                            weight=ft.FontWeight.BOLD,
-                        ),
-                        ft.Text(
-                            "Developer toolkit installer — pick profiles or cherry-pick tools, then click START INSTALL.",
-                            size=13,
-                        ),
-                    ],
-                    spacing=2,
-                    expand=True,
+                ft.Text(
+                    "Absentmind's DevKit",
+                    size=22,
+                    weight=ft.FontWeight.BOLD,
                 ),
-                start_button,
+                ft.Text(
+                    "Developer toolkit installer — pick profiles or cherry-pick tools, "
+                    "review the summary, then click START INSTALL at the bottom.",
+                    size=13,
+                ),
             ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=2,
+        )
+
+        # Start bar sits just above the equivalent-command preview so it's visible
+        # without scrolling, and close to the command the user is about to run.
+        start_bar = ft.Container(
+            content=ft.Row(
+                [
+                    start_bar_count_text,
+                    start_button,
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.padding.symmetric(horizontal=8, vertical=10),
+            border_radius=8,
+            bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.GREEN),
         )
 
         page.add(
@@ -792,6 +952,7 @@ def main_gui() -> None:
                 color=ft.Colors.ON_SURFACE_VARIANT,
             ),
             tabs,
+            start_bar,
             preview_field,
             ft.Row(
                 [

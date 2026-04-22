@@ -22,6 +22,17 @@ if TYPE_CHECKING:
 # Scripted / non-catalog steps (preflight, infra wingets not in catalog, scoop, rustup, extensions, etc.).
 _OFF_CATALOG_STEP_BUDGET: int = 34
 
+# Approximate fixed disk budgets (MB) for non-catalog portions of an install.
+# Core stack: Git, GitHub CLI, Windows Terminal, PowerShell 7, VS Code,
+# Python 3, Scoop + modern CLI suite, Nerd Fonts, Oh My Posh, 7-Zip.
+_CORE_STACK_MB: int = 2200
+_SCOOP_CLI_SUITE_MB: int = 150
+# Optional ML bundles.
+_ML_WHEELS_CUDA_MB: int = 4200  # PyTorch + CUDA runtime wheels
+_ML_WHEELS_CPU_MB: int = 650
+_ML_BASE_MB: int = 500  # numpy, pandas, matplotlib, scikit-learn, jupyter, ipython
+_OLLAMA_MB: int = 350  # runtime only — models are separate and user-driven
+
 
 def _absentmind_equivalent(profiles: list[str]) -> bool:
     from core.install_context import default_profiles_from_absentmind
@@ -36,6 +47,53 @@ def _estimate_steps(ctx: InstallContext) -> int:
         count_winget_actions(ctx.profiles, catalog_excludes=ctx.catalog_exclude_tools)
         + _OFF_CATALOG_STEP_BUDGET
     )
+
+
+def _gpu_has_cuda(profile: dict[str, Any]) -> bool:
+    """Best-effort: did Layer 0 see an NVIDIA GPU?"""
+    gpus = profile.get("gpus")
+    if not isinstance(gpus, list):
+        return False
+    for g in gpus:
+        if not isinstance(g, dict):
+            continue
+        vendor = str(g.get("vendor", "")).lower()
+        name = str(g.get("name", "")).lower()
+        if "nvidia" in vendor or "nvidia" in name or "geforce" in name or "rtx" in name:
+            return True
+    return False
+
+
+def _estimate_disk_mb(ctx: InstallContext) -> tuple[int, list[str]]:
+    """Return (total_mb, breakdown_lines) for the summary panel."""
+    from core.install_catalog import estimate_catalog_disk_mb
+
+    catalog_mb = estimate_catalog_disk_mb(
+        ctx.profiles, catalog_excludes=ctx.catalog_exclude_tools
+    )
+    total = _CORE_STACK_MB + _SCOOP_CLI_SUITE_MB + catalog_mb
+    lines = [
+        f"  - Core stack + Scoop CLI suite: ~{(_CORE_STACK_MB + _SCOOP_CLI_SUITE_MB) / 1024:.1f} GB",
+        f"  - Catalog tools for selected profiles: ~{catalog_mb / 1024:.1f} GB",
+    ]
+
+    if "ai-ml" in ctx.profiles:
+        total += _OLLAMA_MB
+        lines.append(f"  - Ollama runtime: ~{_OLLAMA_MB} MB (models not included)")
+        if ctx.install_ml_wheels:
+            wheels = (
+                _ML_WHEELS_CUDA_MB
+                if _gpu_has_cuda(ctx.system_profile)
+                else _ML_WHEELS_CPU_MB
+            )
+            total += wheels
+            kind = "CUDA" if wheels == _ML_WHEELS_CUDA_MB else "CPU"
+            lines.append(f"  - PyTorch wheels ({kind}): ~{wheels / 1024:.1f} GB")
+        if ctx.install_ml_base:
+            total += _ML_BASE_MB
+            lines.append(f"  - ML pip base (numpy/pandas/…): ~{_ML_BASE_MB} MB")
+
+    return total, lines
 
 
 def _min_free_volume_gb(profile: dict[str, Any]) -> float | None:
@@ -160,9 +218,17 @@ def pre_install_summary_lines(ctx: InstallContext) -> list[str]:
             _time_bracket(ctx.system_profile, steps),
         ]
 
+    disk_mb, disk_breakdown = _estimate_disk_mb(ctx)
+    body_lines.append(f"Estimated disk usage: ~{disk_mb / 1024:.1f} GB")
+    body_lines.extend(disk_breakdown)
+
     mfree = _min_free_volume_gb(ctx.system_profile)
     if mfree is not None:
         body_lines.append(f"Smallest sampled volume free space: {mfree:.1f} GB")
+        if mfree < (disk_mb / 1024) * 1.5:
+            body_lines.append(
+                "  ⚠ Free space is close to estimated usage — consider freeing up space first."
+            )
 
     body_lines.append(f"Windows sanitation (CTT WinUtil): {'YES' if ctx.run_sanitation else 'no'}")
     if ctx.run_sanitation:
