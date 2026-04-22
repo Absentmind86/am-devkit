@@ -183,18 +183,17 @@ def main_gui() -> None:
         ]
         for entry in WINGET_CATALOG:
             applies = entry.applies_to(sel)
-            should_install = applies and entry.tool not in excluded_tools
+            if not applies:
+                continue  # hide tools that don't apply to the current profile selection
+            should_install = entry.tool not in excluded_tools
             cb = ft.Checkbox(
                 label=f"{entry.tool}  ({entry.layer})",
                 value=should_install,
-                disabled=not applies,
                 tooltip=entry.winget_id,
             )
 
-            def make_handler(tool: str, checkbox: ft.Checkbox):
+            def make_handler(tool: str):
                 def _on_change(e: ft.ControlEvent) -> None:
-                    if checkbox.disabled:
-                        return
                     if e.control.value:
                         excluded_tools.discard(tool)
                     else:
@@ -202,7 +201,7 @@ def main_gui() -> None:
 
                 return _on_change
 
-            cb.on_change = make_handler(entry.tool, cb)
+            cb.on_change = make_handler(entry.tool)
             controls.append(cb)
         return ft.Column(
             controls,
@@ -219,7 +218,7 @@ def main_gui() -> None:
         page.window.height = 880
 
         absentmind_cb = ft.Checkbox(
-            label="Absentmind Mode — all core profiles (AI, Web, Systems, Game, Hardware; not Extras)",
+            label="Absentmind Mode — select all core profiles (AI, Web, Systems, Game, Hardware). Extras stays separate.",
             value=False,
         )
 
@@ -523,9 +522,15 @@ def main_gui() -> None:
             content=ft.Column(
                 [
                     ft.Text(
-                        "Custom — catalog exclusions",
+                        "Tools & extras — per-item selection",
                         weight=ft.FontWeight.BOLD,
                         size=18,
+                    ),
+                    ft.Text(
+                        "Only tools that apply to your current profile selection are shown. "
+                        "Uncheck any you don't want installed.",
+                        size=12,
+                        italic=True,
                     ),
                     exclusion_host,
                 ],
@@ -567,7 +572,7 @@ def main_gui() -> None:
 
         tabs = ft.Tabs(
             selected_index=0,
-            expand=True,
+            expand=1,
             tabs=[
                 ft.Tab(
                     text="Summary",
@@ -587,18 +592,47 @@ def main_gui() -> None:
                     ),
                 ),
                 ft.Tab(
-                    text="Custom exclusions",
+                    text="Tools & extras",
                     content=custom_tab,
                 ),
             ],
         )
 
-        page.add(
-            ft.Text("Absentmind's DevKit", size=22, weight=ft.FontWeight.BOLD),
-            ft.Text(
-                "Developer toolkit installer — choose your profiles, then run the installer in a new console.",
-                size=13,
+        start_button = ft.FilledButton(
+            "▶  START INSTALL",
+            on_click=run_installer_new_console,
+            style=ft.ButtonStyle(
+                padding=ft.padding.symmetric(horizontal=24, vertical=16),
+                bgcolor=ft.Colors.GREEN_700,
+                color=ft.Colors.WHITE,
             ),
+        )
+
+        header = ft.Row(
+            [
+                ft.Column(
+                    [
+                        ft.Text(
+                            "Absentmind's DevKit",
+                            size=22,
+                            weight=ft.FontWeight.BOLD,
+                        ),
+                        ft.Text(
+                            "Developer toolkit installer — choose profiles, then click START INSTALL.",
+                            size=13,
+                        ),
+                    ],
+                    spacing=2,
+                    expand=True,
+                ),
+                start_button,
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        page.add(
+            header,
             ft.Text(
                 "Licensing: MIT (this repo). WinUtil / Winget / pip packages have separate terms — see docs/THIRD_PARTY_NOTICES.md",
                 size=11,
@@ -608,10 +642,6 @@ def main_gui() -> None:
             preview_field,
             ft.Row(
                 [
-                    ft.FilledButton(
-                        "Run installer (new console)",
-                        on_click=run_installer_new_console,
-                    ),
                     ft.OutlinedButton("Copy command", on_click=copy_command),
                 ],
                 spacing=12,
