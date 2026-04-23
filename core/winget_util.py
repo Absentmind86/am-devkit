@@ -69,6 +69,19 @@ def run_winget_install(
         return 127, "", f"{type(exc).__name__}: {exc}"
 
 
+# Winget HRESULT codes that mean "nothing to do — already at latest version".
+# Returned as unsigned DWORD by GetExitCodeProcess; Python subprocess preserves
+# the unsigned value on Windows, but handle the signed int32 form too for safety.
+_WINGET_ALREADY_INSTALLED_CODES: frozenset[int] = frozenset({
+    0x8A150101,                   # No applicable update / no newer version
+    0x8A15010C,                   # No applicable update (alternate code)
+    0x8A15014B,                   # Package already installed
+    0x8A150101 - 0x100000000,     # signed int32 equivalents
+    0x8A15010C - 0x100000000,
+    0x8A15014B - 0x100000000,
+})
+
+
 def ensure_winget_package(
     ctx: InstallContext,
     manifest: Manifest,
@@ -133,6 +146,19 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [done] {tool}")
+        return
+
+    if code in _WINGET_ALREADY_INSTALLED_CODES:
+        manifest.record_tool(
+            tool=tool,
+            layer=layer,
+            status="skipped",
+            install_method="winget",
+            version=version_hint,
+            notes="Already present on PATH or detector.",
+            winget_id=winget_id,
+        )
+        console.print(f"  [skipped] {tool} — already installed (winget: no newer version)")
         return
 
     manifest.record_tool(

@@ -292,14 +292,32 @@ def build_post_install_html(
     conflict_n = int(audit.get("conflict_count") or 0)
     banner_ok = conflict_n == 0
 
+    _ALREADY_PRESENT_MARKER = "Already present on PATH or detector."
+
+    def _row_class(t: dict[str, Any]) -> str:
+        status = t.get("status", "")
+        notes = t.get("notes") or ""
+        if status == "installed":
+            return "row-installed"
+        if status == "failed":
+            return "row-failed"
+        if status == "skipped" and _ALREADY_PRESENT_MARKER in notes:
+            return "row-already"
+        return ""
+
     def rows() -> str:
         parts: list[str] = []
         for t in tools:
+            status = t.get("status", "")
+            notes = t.get("notes") or ""
+            display_status = status
+            if status == "skipped" and _ALREADY_PRESENT_MARKER in notes:
+                display_status = "already installed"
             parts.append(
-                "<tr>"
+                f"<tr class='{_row_class(t)}'>"
                 f"<td>{_html_escape(str(t.get('tool', '')))}</td>"
                 f"<td>{_html_escape(str(t.get('layer', '')))}</td>"
-                f"<td>{_html_escape(str(t.get('status', '')))}</td>"
+                f"<td>{_html_escape(display_status)}</td>"
                 f"<td>{_html_escape(str(t.get('install_method', '')))}</td>"
                 "</tr>"
             )
@@ -349,6 +367,9 @@ def build_post_install_html(
     th, td {{ border: 1px solid #333; padding: 0.45rem 0.6rem; text-align: left; }}
     th {{ background: #1a1d24; }}
     tr:nth-child(even) {{ background: #151821; }}
+    tr.row-installed td:nth-child(3) {{ color: #2fa36b; font-weight: 600; }}
+    tr.row-failed td:nth-child(3) {{ color: #e05555; font-weight: 600; }}
+    tr.row-already td:nth-child(3) {{ color: #58a6ff; }}
     code {{ font-size: 0.9em; color: #c9d1d9; }}
     .conflict {{ margin: 1rem 0; padding: 1rem; background: #1a1518; border-radius: 8px; }}
     .hint {{ color: #9aa0a6; font-size: 0.95rem; }}

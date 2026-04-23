@@ -1179,24 +1179,38 @@ def main_gui() -> None:
                 lines.append("Install status summary:")
                 lines.append("-" * 70)
 
-                # Group by status
-                status_groups = {}
-                for tool in data.get("tools", []):
-                    status = tool.get("status", "unknown")
-                    if status not in status_groups:
-                        status_groups[status] = []
-                    status_groups[status].append(tool)
+                _ALREADY_PRESENT_NOTES = ("Already present on PATH or detector.",)
 
-                # Display in order: installed, planned, failed, skipped
-                for status in ["installed", "planned", "failed", "skipped"]:
+                def _display_status(t: dict) -> str:
+                    """Reclassify 'skipped' entries that are actually pre-installed."""
+                    if t.get("status") == "skipped" and any(
+                        marker in (t.get("notes") or "") for marker in _ALREADY_PRESENT_NOTES
+                    ):
+                        return "already_installed"
+                    return t.get("status", "unknown")
+
+                # Group by display status
+                status_groups: dict[str, list] = {}
+                for tool in data.get("tools", []):
+                    ds = _display_status(tool)
+                    status_groups.setdefault(ds, []).append(tool)
+
+                _STATUS_META = [
+                    ("installed",        "I", "INSTALLED"),
+                    ("already_installed","A", "ALREADY INSTALLED"),
+                    ("planned",          "P", "PLANNED (dry-run)"),
+                    ("failed",           "F", "FAILED"),
+                    ("skipped",          "S", "SKIPPED"),
+                ]
+                for status, letter, label in _STATUS_META:
                     if status not in status_groups:
                         continue
                     tools = status_groups[status]
-                    lines.append(f"\n{status.upper()} ({len(tools)}):")
-                    for tool in tools[:15]:  # Show first 15 per status
+                    lines.append(f"\n{label} ({len(tools)}):")
+                    for tool in tools[:15]:
                         layer = tool.get("layer", "?")
                         method = tool.get("install_method", "?")
-                        lines.append(f"  [{status[0].upper()}] {tool['tool']:25s} ({layer:15s}) via {method}")
+                        lines.append(f"  [{letter}] {tool['tool']:25s} ({layer:15s}) via {method}")
                     if len(tools) > 15:
                         lines.append(f"  ... and {len(tools) - 15} more")
 
