@@ -42,6 +42,7 @@ def run_winget_install(
         "--accept-package-agreements",
         "--accept-source-agreements",
         "--disable-interactivity",
+        "--silent",
     ]
     try:
         if show_output:

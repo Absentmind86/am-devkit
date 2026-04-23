@@ -62,7 +62,7 @@ WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
     WingetCatalogEntry("everything", "voidtools.Everything", "utilities", None, "Everything.exe"),
     WingetCatalogEntry("devtoys", "DevToys-app.DevToys", "utilities", None, "DevToys.exe"),
     WingetCatalogEntry("winmerge", "WinMerge.WinMerge", "utilities", None, "WinMergeU.exe"),
-    WingetCatalogEntry("dbeaver", "dbeaver.dbeaver", "utilities", P_WEB_AI, "dbeaver.exe"),
+    WingetCatalogEntry("dbeaver", "DBeaver.DBeaver.Community", "utilities", P_WEB_AI, "dbeaver.exe"),
     WingetCatalogEntry("bruno", "Bruno.Bruno", "utilities", P_WEB_AI, "Bruno.exe"),
     WingetCatalogEntry("sysinternals", "Microsoft.Sysinternals.Suite", "utilities", P_SYS_HW, "procexp.exe"),
     WingetCatalogEntry("wireshark", "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME_HW, "Wireshark.exe"),
@@ -88,7 +88,7 @@ WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
     WingetCatalogEntry("temurin-jdk21", "EclipseAdoptium.Temurin.21.JDK", "languages", P_WEB_SYS_GAME, "java.exe"),
     WingetCatalogEntry("dotnet-sdk-8", "Microsoft.DotNet.SDK.8", "languages", P_WEB_SYS_GAME, "dotnet.exe"),
     WingetCatalogEntry("cmake", "Kitware.CMake", "languages", P_SYS_GAME_HW, "cmake.exe"),
-    WingetCatalogEntry("ninja", "NinjaBuild.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe"),
+    WingetCatalogEntry("ninja", "Ninja-build.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe"),
     WingetCatalogEntry("unity-hub", "Unity.UnityHub", "languages", P_GAME, "Unity Hub.exe"),
     WingetCatalogEntry("godot", "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe"),
     # --- AI/ML non-Python non-pip installs (catalog-driven for excludability) ---

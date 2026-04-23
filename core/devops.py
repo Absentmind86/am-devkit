@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from core.catalog_install import install_catalog_layer
+from core.install_catalog import catalog_entries_for_layer
 from core.pwsh_util import ensure_wsl_default_distro, ensure_wsl_prereq
 
 if TYPE_CHECKING:
@@ -20,8 +21,25 @@ if TYPE_CHECKING:
     from core.manifest import Manifest
 
 
+_CONTAINER_TOOLS: frozenset[str] = frozenset({"docker-desktop", "podman-desktop"})
+
+
 def run_devops(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     console.print("[bold]Layer 6 — DevOps & containers[/bold]")
+
+    # Docker Desktop and Podman Desktop require WSL2 to function on Windows 11 Home.
+    # Auto-enable the WSL prereq whenever either container tool will be installed,
+    # without forcing the user to pass --enable-wsl.
+    if not ctx.enable_wsl:
+        selected = set(ctx.profiles)
+        needs_wsl = any(
+            e.tool in _CONTAINER_TOOLS
+            and e.applies_to(selected)
+            and e.tool not in ctx.catalog_exclude_tools
+            for e in catalog_entries_for_layer("devops")
+        )
+        if needs_wsl:
+            ctx.enable_wsl = True
 
     ensure_wsl_prereq(ctx, manifest, console)
     if ctx.wsl_default_distro:

@@ -39,6 +39,8 @@ def run_preflight(ctx: InstallContext, manifest: Manifest, console: Console) -> 
 
     ps = f"""
 $ErrorActionPreference = 'Stop'
+# System Protection must be enabled on the system drive before Checkpoint-Computer will work.
+Enable-ComputerRestore -Drive "$env:SystemDrive\" -ErrorAction SilentlyContinue
 Checkpoint-Computer -Description '{desc.replace("'", "''")}' -RestorePointType MODIFY_SETTINGS
 """
     console.print("  [installing] System restore point …")

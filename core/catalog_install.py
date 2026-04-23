@@ -19,10 +19,14 @@ def install_catalog_layer(
     manifest: Manifest,
     console: Console,
     layer: str,
+    *,
+    skip_tools: frozenset[str] | None = None,
 ) -> None:
     """Apply all ``WingetCatalogEntry`` rows for *layer*."""
     selected = set(ctx.profiles)
     for entry in catalog_entries_for_layer(layer):
+        if skip_tools and entry.tool in skip_tools:
+            continue
         if entry.tool in ctx.catalog_exclude_tools:
             manifest.record_tool(
                 tool=entry.tool,

@@ -121,7 +121,15 @@ def ensure_scoop(
     install_ps = r"""
 $ErrorActionPreference = 'Stop'
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+# Scoop refuses to install when running as Administrator by default.
+# Detect elevation and pass -RunAsAdmin to the installer when needed.
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$scoopScript = Invoke-RestMethod -Uri https://get.scoop.sh
+if ($isAdmin) {
+    & ([scriptblock]::Create($scoopScript)) -RunAsAdmin
+} else {
+    & ([scriptblock]::Create($scoopScript))
+}
 """
     console.print(f"  [installing] {tool} …")
     code, out, err = run_powershell(install_ps, timeout_s=600.0)

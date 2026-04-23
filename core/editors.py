@@ -178,5 +178,7 @@ def run_editors(ctx: InstallContext, manifest: Manifest, console: Console) -> No
         else:
             _install_vscode_extensions(ctx, manifest, console, code, ids)
 
-    # Remaining editors catalog entries (e.g. jetbrains-toolbox) via profile gates
-    install_catalog_layer(ctx, manifest, console, "editors")
+    # Remaining editors catalog entries (e.g. jetbrains-toolbox) via profile gates.
+    # vscode/cursor are already handled above; skip them here to avoid a double-install
+    # that causes a spurious winget failure when PATH hasn't refreshed yet.
+    install_catalog_layer(ctx, manifest, console, "editors", skip_tools=frozenset({"vscode", "cursor"}))
