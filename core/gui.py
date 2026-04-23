@@ -1159,6 +1159,103 @@ def main_gui() -> None:
             padding=16, expand=True,
         )
 
+        # ------------------------------------------------------------------
+        # Results tab: display the most recent dry-run / post-install manifest
+        # ------------------------------------------------------------------
+        results_manifest_field = ft.TextField(
+            label="Install manifest (from most recent run)",
+            read_only=True, multiline=True, min_lines=20, max_lines=40, text_size=11,
+            expand=True,
+        )
+
+        def _load_results_from_disk() -> None:
+            """Load and format the devkit-manifest.json if it exists."""
+            manifest_path = _REPO_ROOT / "devkit-manifest.json"
+            if not manifest_path.is_file():
+                results_manifest_field.value = "(No manifest found yet. Run --dry-run or START INSTALL to generate results.)"
+                return
+            try:
+                import json
+                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                lines = []
+                lines.append(f"Generated: {data.get('generated_at', 'unknown')}")
+                lines.append(f"DevKit version: {data.get('devkit_version', 'unknown')}")
+                lines.append("")
+                lines.append("Install status summary:")
+                lines.append("-" * 70)
+
+                # Group by status
+                status_groups = {}
+                for tool in data.get("tools", []):
+                    status = tool.get("status", "unknown")
+                    if status not in status_groups:
+                        status_groups[status] = []
+                    status_groups[status].append(tool)
+
+                # Display in order: installed, planned, failed, skipped
+                for status in ["installed", "planned", "failed", "skipped"]:
+                    if status not in status_groups:
+                        continue
+                    tools = status_groups[status]
+                    lines.append(f"\n{status.upper()} ({len(tools)}):")
+                    for tool in tools[:15]:  # Show first 15 per status
+                        layer = tool.get("layer", "?")
+                        method = tool.get("install_method", "?")
+                        lines.append(f"  [{status[0].upper()}] {tool['tool']:25s} ({layer:15s}) via {method}")
+                    if len(tools) > 15:
+                        lines.append(f"  ... and {len(tools) - 15} more")
+
+                lines.append("")
+                lines.append("=" * 70)
+                lines.append("For detailed results, see:")
+                lines.append(f"  - {manifest_path}")
+                lines.append(f"  - {_REPO_ROOT / 'post-install-report.html'}")
+                lines.append("")
+                lines.append("(Refresh this tab after running --dry-run or START INSTALL)")
+
+                results_manifest_field.value = "\n".join(lines)
+            except Exception as e:
+                results_manifest_field.value = f"Error loading manifest: {e}"
+
+        def _refresh_results(_: ft.ControlEvent | None = None) -> None:
+            _load_results_from_disk()
+            try:
+                results_manifest_field.update()
+            except Exception:
+                pass
+
+        results_tab_content = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Text("Results", weight=ft.FontWeight.BOLD, size=18),
+                    ft.Text(
+                        "Most recent dry-run or post-install results. Refresh to reload.",
+                        size=12, italic=True,
+                    ),
+                    ft.OutlinedButton("Refresh results", on_click=_refresh_results),
+                    results_manifest_field,
+                    ft.OutlinedButton(
+                        "Open full HTML report",
+                        on_click=lambda _: _open_html_report(),
+                    ),
+                ],
+                spacing=8, expand=True,
+            ),
+            padding=16, expand=True,
+        )
+
+        def _open_html_report() -> None:
+            """Open the HTML report in the default browser."""
+            import subprocess
+            report_path = _REPO_ROOT / "post-install-report.html"
+            if report_path.is_file():
+                try:
+                    subprocess.Popen(["start", str(report_path)], shell=True)
+                except Exception as e:
+                    snack.content.value = f"Error opening report: {e}"
+                    snack.open = True
+                    page.update()
+
         tabs = ft.Tabs(
             selected_index=1,
             expand=1,
@@ -1166,6 +1263,7 @@ def main_gui() -> None:
                 ft.Tab(text="Summary",          content=summary_tab_content),
                 ft.Tab(text="Profiles & Tools", content=profiles_tools_tab_content),
                 ft.Tab(text="Install Options",  content=options_tab_content),
+                ft.Tab(text="Results",          content=results_tab_content),
             ],
         )
 
@@ -1196,6 +1294,7 @@ def main_gui() -> None:
         # Initial state
         # ------------------------------------------------------------------
         load_layer0_from_disk()
+        _load_results_from_disk()
         rebuild_profiles_col()
         update_count()
         sync_previews()
