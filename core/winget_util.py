@@ -29,6 +29,7 @@ def run_winget_install(
     *,
     dry_run: bool,
     timeout_s: float = 3600.0,
+    show_output: bool = True,
 ) -> tuple[int, str, str]:
     if dry_run:
         return 0, "", ""
@@ -43,17 +44,28 @@ def run_winget_install(
         "--disable-interactivity",
     ]
     try:
-        proc = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_s,
-        )
+        if show_output:
+            # Stream output in real-time (no capture)
+            proc = subprocess.run(
+                argv,
+                capture_output=False,
+                text=True,
+                timeout=timeout_s,
+            )
+            return proc.returncode, "", ""
+        else:
+            # Capture for logging
+            proc = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout_s,
+            )
+            return proc.returncode, proc.stdout or "", proc.stderr or ""
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 127, "", f"{type(exc).__name__}: {exc}"
-    return proc.returncode, proc.stdout or "", proc.stderr or ""
 
 
 def ensure_winget_package(
@@ -106,8 +118,8 @@ def ensure_winget_package(
         console.print(f"  [failed] {tool} — winget not available")
         return
 
-    console.print(f"  [installing] {tool} via winget …")
-    code, out, err = run_winget_install(winget_id, dry_run=False)
+    console.print(f"  [installing] {tool} via winget (streaming output below)…")
+    code, out, err = run_winget_install(winget_id, dry_run=False, show_output=True)
     combined = (out + "\n" + err).strip()
     if code == 0:
         manifest.record_tool(

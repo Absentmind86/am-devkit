@@ -133,8 +133,9 @@ def run_install(ctx: InstallContext, console: Console, *, layer0_fn: LayerFn | N
         ("extras", extras.run_extras),
         ("sandbox", sandbox.run_sandbox),
     ]
-    for title, fn in rest_steps:
-        console.rule(f"[bold cyan]{title}[/bold cyan]")
+    for idx, (title, fn) in enumerate(rest_steps, 1):
+        progress = f"[{idx}/{len(rest_steps)}]"
+        console.rule(f"[bold cyan]{progress} {title}[/bold cyan]")
         _safe_layer(title, fn, ctx, manifest, console)
         manifest.flush()
 
