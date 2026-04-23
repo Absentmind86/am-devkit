@@ -1162,18 +1162,13 @@ def main_gui() -> None:
         # ------------------------------------------------------------------
         # Results tab: display the most recent dry-run / post-install manifest
         # ------------------------------------------------------------------
-        results_manifest_field = ft.TextField(
-            label="Install manifest (from most recent run)",
-            read_only=True, multiline=True, min_lines=20, max_lines=40, text_size=11,
-            expand=True,
-        )
+        results_display_col = ft.Column([], expand=True, scroll=ft.ScrollMode.AUTO)
 
-        def _load_results_from_disk() -> None:
+        def _format_results_text() -> str:
             """Load and format the devkit-manifest.json if it exists."""
             manifest_path = _REPO_ROOT / "devkit-manifest.json"
             if not manifest_path.is_file():
-                results_manifest_field.value = "(No manifest found yet. Run --dry-run or START INSTALL to generate results.)"
-                return
+                return "(No manifest found yet. Run --dry-run or START INSTALL to generate results.)"
             try:
                 import json
                 data = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1211,16 +1206,31 @@ def main_gui() -> None:
                 lines.append(f"  - {manifest_path}")
                 lines.append(f"  - {_REPO_ROOT / 'post-install-report.html'}")
                 lines.append("")
-                lines.append("(Refresh this tab after running --dry-run or START INSTALL)")
+                lines.append("(Click 'Refresh results' after running --dry-run or START INSTALL)")
 
-                results_manifest_field.value = "\n".join(lines)
+                return "\n".join(lines)
             except Exception as e:
-                results_manifest_field.value = f"Error loading manifest: {e}"
+                return f"Error loading manifest: {e}"
+
+        def _load_results_from_disk() -> None:
+            """Load results and repopulate the display."""
+            results_display_col.controls.clear()
+            text = _format_results_text()
+            results_display_col.controls.append(
+                ft.TextField(
+                    value=text,
+                    read_only=True,
+                    multiline=True,
+                    min_lines=20,
+                    max_lines=40,
+                    text_size=11,
+                    expand=True,
+                )
+            )
 
         def _refresh_results(_: ft.ControlEvent | None = None) -> None:
-            _load_results_from_disk()
             try:
-                results_manifest_field.update()
+                _load_results_from_disk()
                 page.update()
             except Exception as e:
                 snack.content.value = f"Error refreshing results: {e}"
@@ -1255,7 +1265,7 @@ def main_gui() -> None:
                         size=12, italic=True,
                     ),
                     ft.OutlinedButton("Refresh results", on_click=_refresh_results),
-                    results_manifest_field,
+                    results_display_col,
                     ft.OutlinedButton(
                         "Open full HTML report",
                         on_click=_open_html_report,
