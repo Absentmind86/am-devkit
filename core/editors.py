@@ -118,38 +118,65 @@ def _install_vscode_extensions(
 def run_editors(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     console.print("[bold]Layer 3 — Editors[/bold]")
 
-    ensure_winget_package(
-        ctx,
-        manifest,
-        console,
-        tool="vscode",
-        layer="editors",
-        winget_id="Microsoft.VisualStudioCode",
-        detect=lambda: _vscode_code_cmd() is not None,
-    )
-
-    ensure_winget_package(
-        ctx,
-        manifest,
-        console,
-        tool="cursor",
-        layer="editors",
-        winget_id="Anysphere.Cursor",
-        detect=lambda: which("cursor.exe") is not None,
-    )
-
-    ids = _load_vscode_extension_ids(ctx.repo_root)
-    code = _vscode_code_cmd()
-    if code is None:
+    # VS Code and Cursor are in WINGET_CATALOG (profiles=None) so the GUI
+    # can exclude them via --exclude-catalog-tool.  We still drive the install
+    # here (not via install_catalog_layer) because vscode needs its path for
+    # the extension step; we just honour the exclude flag first.
+    if "vscode" in ctx.catalog_exclude_tools:
         manifest.record_tool(
-            tool="vscode-extensions",
+            tool="vscode",
             layer="editors",
             status="skipped",
-            install_method="code-cli",
-            notes="VS Code bin/code.cmd not found; install VS Code first.",
+            install_method="user-exclude",
+            notes="Excluded via --exclude-catalog-tool vscode.",
         )
-        console.print("  [skipped] vscode-extensions — code.cmd not found")
+        console.print("  [skipped] vscode — user excluded")
     else:
-        _install_vscode_extensions(ctx, manifest, console, code, ids)
+        ensure_winget_package(
+            ctx,
+            manifest,
+            console,
+            tool="vscode",
+            layer="editors",
+            winget_id="Microsoft.VisualStudioCode",
+            detect=lambda: _vscode_code_cmd() is not None,
+        )
 
+    if "cursor" in ctx.catalog_exclude_tools:
+        manifest.record_tool(
+            tool="cursor",
+            layer="editors",
+            status="skipped",
+            install_method="user-exclude",
+            notes="Excluded via --exclude-catalog-tool cursor.",
+        )
+        console.print("  [skipped] cursor — user excluded")
+    else:
+        ensure_winget_package(
+            ctx,
+            manifest,
+            console,
+            tool="cursor",
+            layer="editors",
+            winget_id="Anysphere.Cursor",
+            detect=lambda: which("cursor.exe") is not None,
+        )
+
+    # Skip extensions if VS Code itself was excluded
+    if "vscode" not in ctx.catalog_exclude_tools:
+        ids = _load_vscode_extension_ids(ctx.repo_root)
+        code = _vscode_code_cmd()
+        if code is None:
+            manifest.record_tool(
+                tool="vscode-extensions",
+                layer="editors",
+                status="skipped",
+                install_method="code-cli",
+                notes="VS Code bin/code.cmd not found; install VS Code first.",
+            )
+            console.print("  [skipped] vscode-extensions — code.cmd not found")
+        else:
+            _install_vscode_extensions(ctx, manifest, console, code, ids)
+
+    # Remaining editors catalog entries (e.g. jetbrains-toolbox) via profile gates
     install_catalog_layer(ctx, manifest, console, "editors")

@@ -21,6 +21,7 @@ P_SYS: Final[frozenset[str]] = frozenset({"systems"})
 P_GAME: Final[frozenset[str]] = frozenset({"game-dev"})
 P_HW: Final[frozenset[str]] = frozenset({"hardware-robotics"})
 P_SYS_GAME: Final[frozenset[str]] = frozenset({"systems", "game-dev"})
+P_SYS_GAME_HW: Final[frozenset[str]] = frozenset({"systems", "game-dev", "hardware-robotics"})
 P_SYS_AI_WEB: Final[frozenset[str]] = frozenset({"systems", "web-fullstack", "ai-ml"})
 P_WEB_AI_SYS: Final[frozenset[str]] = frozenset({"web-fullstack", "ai-ml", "systems"})
 P_LANG_STACK: Final[frozenset[str]] = frozenset({"systems", "game-dev", "hardware-robotics", "ai-ml", "web-fullstack"})
@@ -50,6 +51,9 @@ def _d(exe: str) -> Callable[[], bool]:
 
 # Order within a layer is install order (dependencies first where possible).
 WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
+    # --- Layer 3: editors (common — optional via --exclude-catalog-tool) ---
+    WingetCatalogEntry("vscode",  "Microsoft.VisualStudioCode", "editors", None, "code.cmd"),
+    WingetCatalogEntry("cursor",  "Anysphere.Cursor",           "editors", None, "cursor.exe"),
     # --- Layer 7: utilities (common) ---
     WingetCatalogEntry("7zip", "7zip.7zip", "utilities", None, "7z.exe"),
     WingetCatalogEntry("notepadplusplus", "Notepad++.Notepad++", "utilities", None, "notepad++.exe"),
@@ -61,9 +65,10 @@ WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
     WingetCatalogEntry("fork-git-client", "Fork.Fork", "utilities", P_WEB_AI, "Fork.exe"),
     WingetCatalogEntry("keepassxc", "KeePassXCTeam.KeePassXC", "utilities", P_WEB_AI, "KeePassXC.exe"),
     WingetCatalogEntry("sysinternals", "Microsoft.Sysinternals.Suite", "utilities", P_SYS, "procexp.exe"),
-    WingetCatalogEntry("wireshark", "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME, "Wireshark.exe"),
-    WingetCatalogEntry("nmap", "Insecure.Nmap", "utilities", P_SYS_GAME, "nmap.exe"),
+    WingetCatalogEntry("wireshark", "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME_HW, "Wireshark.exe"),
+    WingetCatalogEntry("nmap", "Insecure.Nmap", "utilities", P_SYS, "nmap.exe"),
     WingetCatalogEntry("arduino-ide", "ArduinoSA.IDE.stable", "utilities", P_HW, "arduino.exe"),
+    WingetCatalogEntry("putty", "PuTTY.PuTTY", "utilities", P_HW, "putty.exe"),
     # --- Layer 6: devops extras ---
     # Docker / Kubernetes are now catalog-driven so the GUI can exclude them.
     WingetCatalogEntry("docker-desktop", "Docker.DockerDesktop", "devops", P_WEB_AI, "docker.exe"),
@@ -82,8 +87,8 @@ WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
     WingetCatalogEntry("golang", "GoLang.Go", "languages", P_LANG_STACK, "go.exe"),
     WingetCatalogEntry("temurin-jdk21", "EclipseAdoptium.Temurin.21.JDK", "languages", P_LANG_STACK, "java.exe"),
     WingetCatalogEntry("dotnet-sdk-8", "Microsoft.DotNet.SDK.8", "languages", P_SYS_GAME, "dotnet.exe"),
-    WingetCatalogEntry("cmake", "Kitware.CMake", "languages", P_SYS_GAME, "cmake.exe"),
-    WingetCatalogEntry("ninja", "NinjaBuild.Ninja", "languages", P_SYS_GAME, "ninja.exe"),
+    WingetCatalogEntry("cmake", "Kitware.CMake", "languages", P_SYS_GAME_HW, "cmake.exe"),
+    WingetCatalogEntry("ninja", "NinjaBuild.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe"),
     WingetCatalogEntry("unity-hub", "Unity.UnityHub", "languages", P_GAME, "Unity Hub.exe"),
     WingetCatalogEntry("godot", "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe"),
     # --- AI/ML non-Python non-pip installs (catalog-driven for excludability) ---
@@ -140,6 +145,10 @@ TOOL_DISK_MB: Final[dict[str, int]] = {
     "wireshark": 180,
     "nmap": 60,
     "arduino-ide": 500,
+    "putty": 5,
+    # Layer 3 editors (common)
+    "vscode":  400,
+    "cursor":  350,
     # Layer 6 devops
     "docker-desktop": 1200,
     "kubectl": 10,

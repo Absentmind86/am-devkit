@@ -80,37 +80,79 @@ PROFILE_FEATURE_ITEMS: dict[str, tuple[tuple[str, str, str, str], ...]] = {
     ),
 }
 
-# Always-installed core items (Layer 0-3 boot + common catalog + Scoop suite).
-# True must-haves get the REQUIRED flag; everything else is HARDWIRED (installer
-# layers don't have skip flags yet — future work).
+# Only truly locked items — Python + flet/rich are required to run this GUI.
 CORE_ITEMS: tuple[tuple[str, str, str], ...] = (
-    # (display_name, description, state)  state: "required" | "hardwired" | "optional"
-    ("Python 3",              "runtime — already running the GUI",     "required"),
-    ("flet, rich",            "GUI/CLI deps (pip) — already installed", "required"),
-    ("Git",                   "version control (winget)",               "hardwired"),
-    ("Git LFS",               "large-file support (winget)",            "hardwired"),
-    ("GitHub CLI",            "gh command (winget)",                    "hardwired"),
-    ("Windows Terminal",      "modern terminal (winget)",               "hardwired"),
-    ("PowerShell 7",          "modern pwsh (winget)",                   "hardwired"),
-    ("OpenSSH Client",        "ssh/scp (Windows capability)",           "hardwired"),
-    ("VS Code",               "editor (winget)",                        "hardwired"),
-    ("Cursor",                "AI-native editor (winget)",              "hardwired"),
-    ("VS Code extensions",    "from config/vscode/extensions.json",     "hardwired"),
-    ("uv",                    "fast Python package manager (winget)",   "hardwired"),
-    ("pyenv-win",             "Python version manager (scoop)",         "hardwired"),
-    ("Scoop",                 "CLI package manager",                    "hardwired"),
-    ("Scoop CLI suite",       "bat, ripgrep, fd, fzf, jq, lazygit, delta", "hardwired"),
-    ("Oh My Posh",            "prompt theming (winget)",                "hardwired"),
-    ("Tailscale",             "zero-config VPN (winget)",               "hardwired"),
-    ("Nerd Fonts",            "icons/glyphs for terminals",             "hardwired"),
-    ("7-Zip",                 "archiver (common catalog, always)",       "hardwired"),
-    ("Notepad++",             "editor (common catalog, always)",        "hardwired"),
-    ("Everything",            "file search (common catalog, always)",   "hardwired"),
-    ("DevToys",               "developer utilities (common catalog)",   "hardwired"),
-    ("WinMerge",              "diff/merge (common catalog)",            "hardwired"),
-    ("System restore point",  "pre-install safety (toggle: skip-restore-point)", "hardwired"),
-    ("Dotfiles seed",         ".gitconfig / pwsh profile (toggle: skip-dotfiles)", "hardwired"),
+    ("Python 3",   "runtime — already running the GUI",      "required"),
+    ("flet, rich", "GUI/CLI deps (pip) — already installed", "required"),
 )
+
+# Approximate count of non-catalog foundation tools that always install
+# (Git, Git LFS, GitHub CLI, Windows Terminal, PowerShell 7, OpenSSH, uv,
+# pyenv-win, Scoop, Scoop CLI suite, Oh My Posh, Tailscale, Nerd Fonts,
+# restore-point, dotfiles).
+FOUNDATION_ALWAYS_COUNT: int = 15
+
+# Hover tooltips shown on every catalog tool checkbox and feature toggle.
+TOOL_TOOLTIPS: dict[str, str] = {
+    # Common tools (profiles=None) ----------------------------------------
+    "vscode":            "Visual Studio Code — lightweight, extensible editor by Microsoft. Extensions installed from config/vscode/extensions.json.",
+    "cursor":            "Cursor — AI-native code editor built on VS Code with Claude / Copilot integration baked in.",
+    "7zip":              "7-Zip — open-source file archiver supporting ZIP, 7z, TAR, GZ, RAR and more.",
+    "notepadplusplus":   "Notepad++ — fast text and code editor with syntax highlighting, multi-tab editing, and macro recording.",
+    "everything":        "Everything — instant file search across your entire drive. Finds files by name in milliseconds.",
+    "devtoys":           "DevToys — developer Swiss-army knife: JSON formatter, base64, hash generator, regex tester, diff viewer, and more.",
+    "winmerge":          "WinMerge — visual diff and merge tool for files and folders. Great for comparing configs and code.",
+    # Utilities (profile-gated) -------------------------------------------
+    "dbeaver":           "DBeaver — universal database GUI client supporting PostgreSQL, MySQL, SQLite, and 100+ other databases.",
+    "bruno":             "Bruno — open-source API client (Postman/Insomnia alternative). Collections stored as plain text files — Git-friendly.",
+    "fork-git-client":   "Fork — fast, friendly Git GUI with visual branching, merge conflict resolution, and a built-in diff viewer.",
+    "keepassxc":         "KeePassXC — open-source offline password manager. Credentials stored in a local encrypted database.",
+    "sysinternals":      "Sysinternals Suite — Microsoft's advanced Windows utilities: Process Explorer, Autoruns, TCPView, ProcMon, and more.",
+    "wireshark":         "Wireshark — network protocol analyzer. Capture and inspect live packets for debugging and security analysis.",
+    "nmap":              "Nmap — network discovery and security scanner. Maps open ports and services on reachable hosts.",
+    "arduino-ide":       "Arduino IDE — official IDE for programming Arduino boards and compatible microcontrollers.",
+    "putty":             "PuTTY — SSH, Telnet, and serial console client. Essential for talking to embedded devices over UART/USB-serial.",
+    # DevOps --------------------------------------------------------------
+    "docker-desktop":    "Docker Desktop — containerization platform with GUI, CLI, and Compose for running Linux containers on Windows.",
+    "kubectl":           "kubectl — Kubernetes CLI. Deploy, inspect, and manage containerized workloads in any K8s cluster.",
+    "helm":              "Helm — Kubernetes package manager. Install and upgrade pre-configured application charts.",
+    "postgresql-17":     "PostgreSQL 17 — powerful open-source relational database, widely used for web apps and data pipelines.",
+    "redis":             "Redis — in-memory key-value store used for caching, sessions, pub/sub messaging, and fast data structures.",
+    "mkcert":            "mkcert — create locally trusted TLS certificates with zero config. Enables HTTPS on localhost for dev.",
+    "ngrok":             "ngrok — expose local servers to the internet via secure tunnels. Useful for webhooks, demos, and API testing.",
+    "aws-cli":           "AWS CLI — command-line interface for Amazon Web Services: S3, EC2, Lambda, and all other AWS services.",
+    "google-cloud-sdk":  "Google Cloud SDK — gcloud, gsutil, and bq CLI tools for all Google Cloud Platform services.",
+    "azure-cli":         "Azure CLI — command-line tool for creating and managing Microsoft Azure resources.",
+    "podman-desktop":    "Podman Desktop — daemonless, rootless container engine (Docker-compatible) with a GUI. No background daemon required.",
+    # Languages & build ---------------------------------------------------
+    "nvm-windows":       "NVM for Windows — Node Version Manager. Install and switch between Node.js versions per project.",
+    "golang":            "Go (golang) — fast, statically typed language by Google. Great for CLIs, cloud services, embedded tooling, and microservices.",
+    "temurin-jdk21":     "Eclipse Temurin JDK 21 — open-source Java 21 LTS runtime and SDK by the Adoptium project.",
+    "dotnet-sdk-8":      ".NET SDK 8 — Microsoft's cross-platform SDK for C# and F#. Required for Unity scripting, WinForms, and ASP.NET.",
+    "cmake":             "CMake — cross-platform build system generator. The de-facto standard for C/C++ projects and embedded firmware.",
+    "ninja":             "Ninja — ultra-fast build system, typically used as CMake's backend generator for C/C++ and embedded builds.",
+    "unity-hub":         "Unity Hub — launcher and license manager for Unity Editor versions. Required to start Unity game development.",
+    "godot":             "Godot Engine — open-source 2D/3D game engine with GDScript (Python-like) and C# support. No royalties.",
+    # ML stack ------------------------------------------------------------
+    "ollama":            "Ollama — run large language models locally (Llama, Mistral, Gemma, Phi, and more) via a simple CLI and REST API.",
+    # Editors extras ------------------------------------------------------
+    "jetbrains-toolbox": "JetBrains Toolbox — launcher for all JetBrains IDEs: IntelliJ IDEA, PyCharm, WebStorm, Rider, GoLand, and more.",
+    # Extras (opt-in) -----------------------------------------------------
+    "powertoys":         "Microsoft PowerToys — power-user utilities: FancyZones, PowerRename, Color Picker, Run launcher, and more.",
+    "obsidian":          "Obsidian — markdown knowledge base and note-taking with a graph view, backlinks, and a rich plugin ecosystem.",
+    "obs-studio":        "OBS Studio — free, open-source screen recording and live streaming software.",
+    "sharex":            "ShareX — advanced screenshot and screen recording with annotations, workflows, and upload support.",
+    "hwinfo":            "HWiNFO — detailed hardware information and real-time sensor monitoring: temps, voltages, fan speeds.",
+    "wiztree":           "WizTree — the fastest disk space analyzer. Visualizes what is consuming your drive in seconds.",
+    "vlc":               "VLC — universal media player supporting virtually every audio and video format, including network streams.",
+    "bitwarden":         "Bitwarden — open-source password manager with cloud sync, browser extensions, and mobile apps.",
+    "autohotkey":        "AutoHotkey — Windows automation scripting. Remap keys, automate repetitive tasks, and build simple GUIs.",
+    "discord":           "Discord — voice, video, and text chat platform. Popular in dev communities, gaming, and open-source projects.",
+    "ffmpeg":            "FFmpeg — command-line multimedia framework for converting, encoding, streaming, and processing audio/video files.",
+    # Feature toggles (map to ui_key, not tool id) -----------------------
+    "install_ml_wheels": "Installs GPU-matched PyTorch via pip. Auto-detects NVIDIA CUDA or AMD ROCm and selects the right wheel index; falls back to CPU-only wheels.",
+    "install_ml_base":   "Installs the core scientific Python stack via pip: numpy, pandas, matplotlib, scikit-learn, jupyter, ipython.",
+}
 
 # Rust toolchain is non-catalog (rustup) and non-toggleable today.
 # Shown as info row under profiles that trigger it.
@@ -157,11 +199,17 @@ def _needed_profiles_for(ui: dict[str, Any]) -> list[str]:
 def _exclusions_for(ui: dict[str, Any], needed_profiles: list[str]) -> list[str]:
     from core.install_catalog import WINGET_CATALOG
     desired = set(ui["desired_tools"])
+    common_out = set(ui.get("common_opt_out") or ())
     sel = set(needed_profiles)
-    return [
-        e.tool for e in WINGET_CATALOG
-        if e.profiles is not None and e.tool not in desired and e.applies_to(sel)
-    ]
+    excl: list[str] = []
+    for e in WINGET_CATALOG:
+        if e.profiles is None:
+            # Common tool: excluded only if user explicitly opted out
+            if e.tool in common_out:
+                excl.append(e.tool)
+        elif e.tool not in desired and e.applies_to(sel):
+            excl.append(e.tool)
+    return excl
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +305,9 @@ def main_gui() -> None:
     profile_checks: dict[str, ft.Checkbox] = {}
     # All rendered Checkbox instances for each tool (shared across profile sections)
     tool_cb_instances: dict[str, list[ft.Checkbox]] = {}
+    # Common catalog tools (profiles=None) the user has opted OUT of
+    common_opt_out: set[str] = set()
+    common_cb_instances: dict[str, list[ft.Checkbox]] = {}
     # Detected installed state (populated by background scan)
     installed_state: dict[str, bool] = {}
 
@@ -298,6 +349,7 @@ def main_gui() -> None:
         ui: dict[str, Any] = {
             "profile_checks":    profile_checks,
             "desired_tools":     desired_tools,
+            "common_opt_out":    common_opt_out,
             "dry_run":           dry_run,
             "run_sanitation":    run_sanitation,
             "sanitation_preset": sanitation_preset_dd,
@@ -360,8 +412,12 @@ def main_gui() -> None:
             return n
 
         def update_count() -> None:
-            picked   = len(desired_tools) + _count_feature_picks()
-            core_n   = len(CORE_ITEMS)
+            from core.install_catalog import WINGET_CATALOG as _CAT
+            common_selected = sum(
+                1 for e in _CAT if e.profiles is None and e.tool not in common_opt_out
+            )
+            picked   = len(desired_tools) + _count_feature_picks() + common_selected
+            core_n   = len(CORE_ITEMS) + FOUNDATION_ALWAYS_COUNT
             total    = picked + core_n
             tword    = "tool" if picked == 1 else "tools"
             bar_count_text.value  = f"{picked} {tword} selected · ~{total} total installs this run"
@@ -465,57 +521,55 @@ def main_gui() -> None:
         def _make_tool_label(entry: Any) -> str:
             return f"{entry.tool}  ({entry.layer}){_installed_suffix(entry.tool)}"
 
-        def _sync_profile_header_state(pid: str) -> None:
-            """Uncheck the profile 'select all' header if not all its tools are chosen."""
-            hdr = profile_checks.get(pid)
-            if hdr is None:
-                return
-            all_tools = set(_tools_for_profile(pid))
-            feat_keys = {k for _n, _d, _f, k in PROFILE_FEATURE_ITEMS.get(pid, ())}
-            fully_selected = all_tools.issubset(desired_tools) and all(
-                bool(ui[k].value) for k in feat_keys
-            )
-            if hdr.value and not fully_selected:
-                hdr.value = False
-                try:
-                    hdr.update()
-                except Exception:
-                    pass
-                # Auto-check Custom when a profile becomes partial
-                custom_cb = profile_checks.get("custom")
-                if custom_cb and not custom_cb.value:
-                    custom_cb.value = True
-                    try:
-                        custom_cb.update()
-                    except Exception:
-                        pass
+        def _sync_all_header_states() -> None:
+            """Sync all profile headers and absentmind_cb after any tool toggle."""
+            for pid in STANDARD_PROFILE_IDS:
+                hdr = profile_checks.get(pid)
+                if hdr is None or not hdr.value:
+                    continue
+                all_tools = set(_tools_for_profile(pid))
+                feat_keys = {k for _n, _d, _f, k in PROFILE_FEATURE_ITEMS.get(pid, ())}
+                fully_selected = all_tools.issubset(desired_tools) and all(
+                    bool(ui[k].value) for k in feat_keys
+                )
+                if not fully_selected:
+                    hdr.value = False
+                    # Auto-check Custom when a profile becomes partial
+                    custom_cb = profile_checks.get("custom")
+                    if custom_cb and not custom_cb.value:
+                        custom_cb.value = True
+            # Uncheck absentmind_cb if any standard profile is no longer fully checked
+            if absentmind_cb.value:
+                all_profiles_on = all(
+                    pid in profile_checks and bool(profile_checks[pid].value)
+                    for pid in STANDARD_PROFILE_IDS
+                )
+                if not all_profiles_on:
+                    absentmind_cb.value = False
 
         def on_tool_toggle(tool: str, is_checked: bool, source_pid: str | None = None) -> None:
             if is_checked:
                 desired_tools.add(tool)
             else:
                 desired_tools.discard(tool)
-            # Sync every other Checkbox instance for this tool
+            # Sync every other Checkbox instance for this tool (no individual .update())
             for cb in tool_cb_instances.get(tool, []):
                 try:
                     if cb.value != is_checked:
                         cb.value = is_checked
-                        cb.update()
                 except Exception:
                     pass
-            # Update profile header states for every profile this tool belongs to
-            from core.install_catalog import WINGET_CATALOG
-            for entry in WINGET_CATALOG:
-                if entry.tool == tool and entry.profiles:
-                    for pid in entry.profiles & set(STANDARD_PROFILE_IDS):
-                        _sync_profile_header_state(pid)
+            # Sync all profile headers and absentmind checkbox, then batch-redraw
+            _sync_all_header_states()
             update_count()
             sync_previews()
+            page.update()
 
         def make_tool_checkbox(entry: Any, pid_context: str) -> ft.Checkbox:
             cb = ft.Checkbox(
                 label=_make_tool_label(entry),
                 value=entry.tool in desired_tools,
+                tooltip=TOOL_TOOLTIPS.get(entry.tool, ""),
             )
 
             def _handler(e: ft.ControlEvent) -> None:
@@ -530,7 +584,11 @@ def main_gui() -> None:
 
         def make_feature_checkbox(name: str, desc: str, ui_key: str) -> ft.Checkbox:
             src = ui[ui_key]
-            cb = ft.Checkbox(label=f"{name}  —  {desc}", value=bool(src.value))
+            cb = ft.Checkbox(
+                label=f"{name}  —  {desc}",
+                value=bool(src.value),
+                tooltip=TOOL_TOOLTIPS.get(ui_key, desc),
+            )
 
             def _handler(e: ft.ControlEvent) -> None:
                 val = bool(e.control.value)
@@ -551,6 +609,34 @@ def main_gui() -> None:
 
             cb.on_change = _handler
             feature_cb_instances.setdefault(ui_key, []).append(cb)
+            return cb
+
+        def make_common_tool_checkbox(entry: Any) -> ft.Checkbox:
+            """Checkbox for a common catalog tool (profiles=None) — pre-checked, opt-out."""
+            cb = ft.Checkbox(
+                label=_make_tool_label(entry),
+                value=entry.tool not in common_opt_out,
+                tooltip=TOOL_TOOLTIPS.get(entry.tool, ""),
+            )
+
+            def _handler(e: ft.ControlEvent) -> None:
+                val = bool(e.control.value)
+                if val:
+                    common_opt_out.discard(entry.tool)
+                else:
+                    common_opt_out.add(entry.tool)
+                for other in common_cb_instances.get(entry.tool, []):
+                    try:
+                        if other is not e.control and other.value != val:
+                            other.value = val
+                    except Exception:
+                        pass
+                update_count()
+                sync_previews()
+                page.update()
+
+            cb.on_change = _handler
+            common_cb_instances.setdefault(entry.tool, []).append(cb)
             return cb
 
         # ------------------------------------------------------------------
@@ -604,6 +690,7 @@ def main_gui() -> None:
             profiles_col.controls.clear()
             tool_cb_instances.clear()
             feature_cb_instances.clear()
+            common_cb_instances.clear()
 
             custom_mode = bool(profile_checks.get("custom", ft.Checkbox()).value)
             active_pids = {pid for pid in STANDARD_PROFILE_IDS if profile_checks.get(pid, ft.Checkbox()).value}
@@ -639,30 +726,44 @@ def main_gui() -> None:
 
             # Core section
             profiles_col.controls.append(ft.Text(
-                "Always installed (core)", weight=ft.FontWeight.BOLD, size=15
+                "Core (always installed)", weight=ft.FontWeight.BOLD, size=15
             ))
-            profiles_col.controls.append(ft.Text(
-                "Python and flet/rich are required to run this GUI. Everything else is "
-                "hardwired in the current installer layers (skip toggles are future work).",
-                size=12, italic=True,
+            # Required items — truly locked (Python 3 + flet/rich)
+            for name, _desc, _state in CORE_ITEMS:
+                profiles_col.controls.append(
+                    ft.Checkbox(
+                        label=f"{name}  (required — already installed)",
+                        value=True, disabled=True,
+                    )
+                )
+            # Foundation note — collapsed to one info line
+            profiles_col.controls.append(ft.Container(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.INFO_OUTLINE, size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ft.Text(
+                        "Foundation (always installs): Git, Git LFS, GitHub CLI, "
+                        "Windows Terminal, PowerShell 7, OpenSSH, uv, pyenv-win, "
+                        "Scoop + CLI suite, Oh My Posh, Tailscale, Nerd Fonts, "
+                        "restore point, dotfiles — no skip toggles yet.",
+                        size=12, italic=True, color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.padding.only(top=4, bottom=4),
             ))
-            for name, desc, state in CORE_ITEMS:
-                if state == "required":
-                    row = ft.Row([
-                        ft.Checkbox(label=f"{name}  (required — already installed)",
-                                    value=True, disabled=True),
-                    ], spacing=4)
-                else:
-                    row = ft.Row([
-                        ft.Icon(ft.Icons.LOCK_OUTLINE, size=14,
-                                 color=ft.Colors.ON_SURFACE_VARIANT),
-                        ft.Text(f"{name}", size=13),
-                        ft.Text(f"— {desc}", size=12, italic=True,
-                                color=ft.Colors.ON_SURFACE_VARIANT),
-                        ft.Text("(always installs)", size=11,
-                                color=ft.Colors.ON_SURFACE_VARIANT),
-                    ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER)
-                profiles_col.controls.append(row)
+            # Common catalog tools — pre-selected, user can uncheck to skip
+            profiles_col.controls.append(ft.Container(
+                content=ft.Text(
+                    "Common tools (pre-selected — uncheck any to skip):",
+                    size=13, weight=ft.FontWeight.W_500,
+                ),
+                padding=ft.padding.only(top=6, bottom=2),
+            ))
+            from core.install_catalog import WINGET_CATALOG as _WC
+            for _entry in (e for e in _WC if e.profiles is None):
+                _cb = make_common_tool_checkbox(_entry)
+                profiles_col.controls.append(
+                    ft.Container(content=_cb, padding=ft.padding.only(left=8))
+                )
 
             profiles_col.controls.append(ft.Divider())
 
@@ -673,7 +774,10 @@ def main_gui() -> None:
                     [
                         ft.Text("Extras (personal-preference apps)",
                                 weight=ft.FontWeight.BOLD, size=15),
-                        ft.OutlinedButton("Select all extras", on_click=select_all_extras),
+                        ft.Row([
+                            ft.OutlinedButton("Select all extras", on_click=select_all_extras),
+                            ft.OutlinedButton("Clear all extras", on_click=clear_all_extras),
+                        ], spacing=8),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -753,11 +857,23 @@ def main_gui() -> None:
                 for cb in tool_cb_instances.get(entry.tool, []):
                     try:
                         cb.value = True
-                        cb.update()
                     except Exception:
                         pass
             update_count()
             sync_previews()
+            page.update()
+
+        def clear_all_extras(_: ft.ControlEvent | None = None) -> None:
+            for entry in _all_extras_entries():
+                desired_tools.discard(entry.tool)
+                for cb in tool_cb_instances.get(entry.tool, []):
+                    try:
+                        cb.value = False
+                    except Exception:
+                        pass
+            update_count()
+            sync_previews()
+            page.update()
 
         def clear_all(_: ft.ControlEvent | None = None) -> None:
             desired_tools.clear()
@@ -765,24 +881,16 @@ def main_gui() -> None:
                 for cb in cbs:
                     try:
                         cb.value = False
-                        cb.update()
                     except Exception:
                         pass
             for pid in STANDARD_PROFILE_IDS:
                 profile_checks[pid].value = False
-                try:
-                    profile_checks[pid].update()
-                except Exception:
-                    pass
+            absentmind_cb.value = False
             ml_wheels.value = False
             ml_base.value   = False
-            try:
-                ml_wheels.update()
-                ml_base.update()
-            except Exception:
-                pass
             update_count()
             sync_previews()
+            page.update()
 
         # ------------------------------------------------------------------
         # ML switch sync: flipping Install Options switch updates feature cbs
@@ -870,10 +978,15 @@ def main_gui() -> None:
             """Update checkbox labels to show '✓ already installed' where detected."""
             from core.install_catalog import WINGET_CATALOG
             for entry in WINGET_CATALOG:
+                label = _make_tool_label(entry)
                 for cb in tool_cb_instances.get(entry.tool, []):
                     try:
-                        cb.label = _make_tool_label(entry)
-                        cb.update()
+                        cb.label = label
+                    except Exception:
+                        pass
+                for cb in common_cb_instances.get(entry.tool, []):
+                    try:
+                        cb.label = label
                     except Exception:
                         pass
 
@@ -911,7 +1024,10 @@ def main_gui() -> None:
         # ------------------------------------------------------------------
         def run_installer(_: ft.ControlEvent) -> None:
             sync_previews()
-            if not desired_tools and not ml_wheels.value and not ml_base.value:
+            # Block only if truly nothing would install (common tools count as selected)
+            from core.install_catalog import WINGET_CATALOG as _gc
+            _common_n = sum(1 for e in _gc if e.profiles is None and e.tool not in common_opt_out)
+            if not desired_tools and _common_n == 0 and not ml_wheels.value and not ml_base.value:
                 show_snack("No tools selected. Tick a profile or cherry-pick tools before installing.")
                 return
             args = _argv_for_installer(ui)
