@@ -106,3 +106,147 @@ OTHER DRIFT ITEMS VERIFIED:
 - Dotfiles: README says "VS Code settings" but config/vscode/settings.json is empty ({}) and never copied
 - Roadmap: Phase 1 marked 🔄 but should be ✅ (all exit criteria met, CHANGELOG says 0.8.0-phase4)
 - AGENTS.md tree: missing ~10 files (launchpad.py, restore_bundle.py, winutil_pin.py, winutil_presets.py, fresh.ps1, scripts/*.py, templates/obsidian-vault/, CHANGELOG.md, RELEASE_TESTING.md, THIRD_PARTY_NOTICES.md)
+
+
+GROK AUDIT SUPPLEMENT (2026-04-24)
+===================================
+
+NON-NEGOTIABLE POLICY
+Any change made to the codebase — code, docs, config, comments, tests — MUST be reflected
+in all relevant files. If you modify behavior, update docs, GUI text, comments, manifest
+schema, release notes, and any other affected areas simultaneously. No drift.
+
+--- ADDITIONAL FACTUAL INACCURACIES ---
+
+docs/PROJECT.md (master spec) has same inaccuracies as README and must be fixed in sync:
+- Claims Nerd Fonts, Git Bash, CUDA Toolkit, cuDNN, Docker GPU passthrough, ROCm as implemented
+- Claims VS Code settings.json is seeded with specific content (auto-save, format on save,
+  terminal = Git Bash) — file is {} and is never used by any layer
+- Lists System Restore Point and Path Auditor as "Core tools" (they are orchestration steps)
+- Phase 1 still marked In Progress
+
+config/profiles/*.toml are ALL empty stubs (verified):
+- ai-ml.toml, web-fullstack.toml, systems.toml, game-dev.toml, hardware-robotics.toml,
+  absentmind-mode.toml = each contains only one comment line, zero actual content
+- extras.toml is the only one with content (369 bytes)
+- All actual profile gating lives exclusively in install_catalog.py `profiles` fields
+- The TOML files are not driving any behavior — this is a documentation/housekeeping gap
+  and could mislead contributors
+
+Node/NVM has NO automation — languages.py:63-66 prints a manual instruction only:
+  "use NVM from catalog; after install run: nvm install lts"
+  This is a completely different UX from every other tool in the installer.
+
+--- CODE QUALITY / HOUSEKEEPING ---
+
+Catalog adoption is ~80-85% complete (not fully unified).
+The split between pre-catalog and catalog-driven installs is currently implicit — needs
+to be formalized as a first-class architectural boundary (not just accepted as debt).
+
+GENUINELY CANNOT MOVE TO CATALOG (true bootstrap prerequisites):
+  - Git, Python 3 — required before the Python runtime + catalog system can run at all
+  - Scoop — required before any Scoop-based tool can be installed
+  - Git LFS — must follow Git, pre-catalog ordering matters
+  THESE STAY in infrastructure.py / languages.py. Document clearly in AGENTS.md.
+
+SHOULD MOVE TO CATALOG (no bootstrap reason, just installed early by habit):
+  - Oh My Posh — cosmetic shell enhancement, zero bootstrap dependency
+  - Tailscale — network tool, no ordering requirement
+  - uv — Python package manager, catalog-installable after Python exists
+  - GitHub CLI — useful early but not a prerequisite for anything
+  - Windows Terminal, PowerShell 7 — no strict ordering dependency
+  ACTION: Move these to a new "foundation" layer in WINGET_CATALOG with profiles=None.
+  This makes them excludable via --exclude-catalog-tool like VS Code/Cursor already are.
+
+Enterprise approach: formalize the boundary in code + docs, not just comment it.
+  - Add a BOOTSTRAP_TOOLS block in infrastructure.py with a clear docstring explaining
+    WHY these bypass catalog (ordering constraint, not convenience)
+  - Move everything without a genuine bootstrap reason into catalog
+  - Document the two-tier pattern explicitly in AGENTS.md as an architecture decision
+
+languages.py is the most inconsistent module:
+- Python + uv: direct winget (bypass catalog)
+- Node: manual print instruction only (no automation)
+- Rust: custom helper + two different skip reasons ("user-opt-out" vs "profile-gate")
+- Final install_catalog_layer("languages") call looks like a partial migration leftover
+- Target state: match the clean pattern of utilities.py (single install_catalog_layer call)
+
+_ensure_repo_on_sys_path() confirmed duplicated in: installer.py, gui.py, system_scan.py,
+  ml_stack.py, finalize.py + others (TIER 2 already flags this for DRY helper extraction)
+
+Stale comments to clean up:
+- gui.py:92 — lists "Nerd Fonts" in FOUNDATION_ALWAYS_COUNT (not installed)
+- pre_install_summary.py:27 — same stale "Nerd Fonts" reference
+- gui.py:154 — tooltip says "AMD ROCm" but code uses DirectML
+
+winutil_pin.py + winutil_presets.py: consider merging (both deal with WinUtil config)
+
+--- CRITICAL GAPS (PRE-RELEASE BLOCKERS) ---
+
+WSL restart handling — no resume logic:
+- DISM runs with /norestart (correct) and exit 3010 is noted (pwsh_util.py:358-360)
+- BUT: no prompt, no pause, no resume-after-reboot orchestration
+- On fresh machines WSL enable + Docker install may silently fail or require manual re-run
+- Should warn user explicitly in pre-install summary that a reboot + re-run may be required
+  when WSL is being enabled for the first time
+
+VM detection gap:
+- system_scan.py collects Win32_ComputerSystem.Manufacturer + Model (lines 104-105, 287)
+  which often contains "VMware", "VirtualBox", "Microsoft Corporation" etc.
+- This data is NEVER used to set any is_vm flag in system-profile.json or InstallContext
+- gpu_detect.py has no VM/hypervisor detection
+- On VMs: GPU detection usually falls back to CPU safely, but no warning is shown
+- Recommendation: Add is_vm detection in system_scan.py using existing Manufacturer/Model
+  data; surface warning in GUI/summary when ai-ml + --install-ml-wheels selected on a VM
+
+--- FEATURE REQUESTS (Future Sprints) ---
+
+[Add to TIER 3 — also relevant for TIER 1 Update Mode item already listed]
+
+Comprehensive Scan Tool (extend scripts/scan-all-tools.py):
+- Query same WINGET_CATALOG + profile logic used during install
+- Detect WinUtil-applied tweaks, installed VS Code extensions, dotfiles, PowerToys settings
+- Runnable standalone: python scripts/scan-all-tools.py --full
+
+"Sync Environment" / Maintenance Mode (replaces simple "Update mode" in TIER 3):
+- Show diff: "Missing (X), Outdated (Y), Extra (Z)" vs selected profiles
+- Let user choose what to sync
+- Reuse existing installer logic with a new --sync / update mode flag
+- Cleaner than a standalone "Update All" button
+
+Post-Install Validator + GUI Report:
+- Run scan tool and compare against manifest / selected profiles
+- GUI: "Validation Check" tab on results/Launchpad page
+  - Tab 1: Validation vs Selected Profiles (what was requested vs installed)
+  - Tab 2: Full Inventory (everything installer knows about)
+- Auto-run after successful install with summary banner in HTML report
+- Strongly aligned with existing manifest + reproducibility philosophy
+
+Group all three under "Maintenance & Validation" section in GUI (not clutter if implemented
+as collapsible or tabbed)
+
+--- TRANSPARENCY AUDIT SUMMARY ---
+
+Overall verdict: Very Good (8.5/10). Strengths:
+- Excellent pre-install summary with estimates + confirmation prompt
+- Per-layer progress output with fault isolation (_safe_layer)
+- Comprehensive HTML report + manifest with every tool timestamped
+- Explicit Y/N for Flet downgrade at bootstrap
+
+Gaps to address:
+1. WinUtil: user sees preset name only, not the actual tweak list — show tweak list in
+   pre-install summary when sanitation is enabled
+2. No per-layer "about to install: X, Y, Z" preview before each layer runs
+3. No automatic post-install validation step (addressed by Validator feature above)
+
+--- POSITIVE FINDINGS (What Is Done Well) ---
+
+- install_catalog.py + catalog_install.py: strong centralized system, clean design
+- installer.py _safe_layer: fault-tolerant, no single failure can abort full run
+- core/preflight.py: clean restore point with excellent error handling + dry-run
+- core/winutil_pin.py: excellent SHA256-pinned WinUtil with live opt-in — strong security
+- GUI (core/gui.py): clear 4-tab structure, info buttons per profile, dry-run default ON
+- Manifest schema am-devkit-manifest-1.1: consistent across all layers, no drift found
+- bootstrap/install.ps1 + fresh.ps1: correct handoff to Python, clear error messages
+- All profile TOMLs consistent in structure (even if content is stubs)
+- Third-party notices and license: accurate
