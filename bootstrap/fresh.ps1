@@ -39,6 +39,28 @@ param(
 $ErrorActionPreference = 'Stop'
 $RepoUrl = 'https://github.com/Absentmind86/Absentminds-DevKit-Windows.git'
 
+# Self-elevate: winget installs and system operations require Administrator.
+# If not already elevated, save this script to a temp file and re-launch it
+# as Administrator via UAC (single prompt, then the rest runs silently).
+$_isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $_isAdmin) {
+    Write-Host 'AM-DevKit requires Administrator rights. Triggering UAC elevation (one prompt)...' -ForegroundColor Yellow
+    # If run via irm|iex, $PSCommandPath is empty — re-download to temp.
+    $scriptFile = if ($PSCommandPath) { $PSCommandPath } else {
+        $tmp = Join-Path $env:TEMP 'am-devkit-fresh.ps1'
+        Invoke-RestMethod 'https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1' |
+            Out-File -FilePath $tmp -Encoding utf8 -Force
+        $tmp
+    }
+    $argStr = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $scriptFile
+    if ($InstallPath -ne (Join-Path $env:USERPROFILE 'Absentminds-DevKit-Windows')) { $argStr += ' -InstallPath "{0}"' -f $InstallPath }
+    if ($Branch -ne 'main')  { $argStr += ' -Branch "{0}"' -f $Branch }
+    if ($Mode  -ne 'Gui')   { $argStr += ' -Mode {0}' -f $Mode }
+    if ($Yes)               { $argStr += ' -Yes' }
+    Start-Process powershell.exe -Verb RunAs -ArgumentList $argStr -Wait
+    exit
+}
+
 function Write-Step {
     param([string] $Message)
     Write-Host "==> $Message" -ForegroundColor Cyan

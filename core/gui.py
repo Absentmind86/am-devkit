@@ -1050,10 +1050,31 @@ def main_gui() -> None:
             if sys.platform == "win32":
                 creation = subprocess.CREATE_NEW_CONSOLE  # type: ignore[attr-defined]
             try:
-                subprocess.Popen(
-                    [sys.executable, "-m", "core.installer", *args],
-                    cwd=str(_REPO_ROOT), creationflags=creation,
-                )
+                if sys.platform == "win32":
+                    # Wrap in PowerShell so the console stays open after the
+                    # installer finishes and the user can read the full output.
+                    py = sys.executable.replace("'", "''")
+                    installer_cmd = " ".join(
+                        [f"& '{py}'", "-m", "core.installer"] +
+                        [f'"{a}"' if " " in a else a for a in args]
+                    )
+                    ps_cmd = (
+                        f"{installer_cmd}; "
+                        f"Write-Host ''; "
+                        f"Write-Host ('=' * 70) -ForegroundColor DarkGray; "
+                        f"Write-Host 'Install finished. Review output above, then close this window.' "
+                        f"-ForegroundColor Green; "
+                        f"Read-Host 'Press Enter to close'"
+                    )
+                    subprocess.Popen(
+                        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+                        cwd=str(_REPO_ROOT), creationflags=creation,
+                    )
+                else:
+                    subprocess.Popen(
+                        [sys.executable, "-m", "core.installer", *args],
+                        cwd=str(_REPO_ROOT), creationflags=creation,
+                    )
                 show_snack("Installer started in a new console window.")
             except OSError as exc:
                 show_snack(f"Could not start installer: {exc}")
@@ -1207,12 +1228,10 @@ def main_gui() -> None:
                         continue
                     tools = status_groups[status]
                     lines.append(f"\n{label} ({len(tools)}):")
-                    for tool in tools[:15]:
+                    for tool in tools:
                         layer = tool.get("layer", "?")
                         method = tool.get("install_method", "?")
                         lines.append(f"  [{letter}] {tool['tool']:25s} ({layer:15s}) via {method}")
-                    if len(tools) > 15:
-                        lines.append(f"  ... and {len(tools) - 15} more")
 
                 lines.append("")
                 lines.append("=" * 70)
@@ -1256,7 +1275,7 @@ def main_gui() -> None:
 
         def _open_html_report(_: ft.ControlEvent | None = None) -> None:
             """Open the HTML report in the default browser."""
-            import subprocess
+            import os
             report_path = _REPO_ROOT / "post-install-report.html"
             if not report_path.is_file():
                 snack.content.value = f"Report not found: {report_path}"
@@ -1264,7 +1283,7 @@ def main_gui() -> None:
                 page.update()
                 return
             try:
-                subprocess.Popen(["start", str(report_path)], shell=True)
+                os.startfile(str(report_path))
             except Exception as e:
                 snack.content.value = f"Error opening report: {e}"
                 snack.open = True
