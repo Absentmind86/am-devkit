@@ -1378,6 +1378,7 @@ def main_gui() -> None:
         def _refresh_results(_: ft.ControlEvent | None = None) -> None:
             try:
                 _load_results_from_disk()
+                _update_report_btn()
                 page.update()
             except Exception as e:
                 snack.content.value = f"Error refreshing results: {e}"
@@ -1403,9 +1404,77 @@ def main_gui() -> None:
                 snack.open = True
                 page.update()
 
+        def _build_issue_url() -> str | None:
+            """Build a pre-filled GitHub new-issue URL from failed manifest entries.
+
+            Returns None when there are no failures or the manifest is missing.
+            """
+            import json
+            import urllib.parse
+
+            manifest_path = _REPO_ROOT / "devkit-manifest.json"
+            if not manifest_path.is_file():
+                return None
+            try:
+                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception:
+                return None
+
+            failed = [t for t in data.get("tools", []) if t.get("status") == "failed"]
+            if not failed:
+                return None
+
+            version = data.get("devkit_version", "unknown")
+            profiles = data.get("profiles", [])
+            ts = data.get("generated_at", "unknown")
+
+            failed_lines = "\n".join(
+                f"- `{t['tool']}` ({t.get('layer', '?')}): {t.get('notes', '')}"
+                for t in failed[:20]
+            )
+            body = (
+                f"**AM-DevKit version:** {version}\n"
+                f"**Profiles:** {', '.join(profiles) if profiles else 'unknown'}\n"
+                f"**Timestamp:** {ts}\n\n"
+                f"**Failed tools ({len(failed)}):**\n{failed_lines}\n\n"
+                "**Steps to reproduce / additional context:**\n"
+                "<!-- Paste relevant output or describe what you were doing -->\n\n"
+                "**Manifest:** attach `devkit-manifest.json` if comfortable sharing."
+            )
+            title = f"Install failure: {', '.join(t['tool'] for t in failed[:3])}"
+            if len(failed) > 3:
+                title += f" (+{len(failed) - 3} more)"
+
+            base = "https://github.com/Absentmind86/Absentminds-DevKit-Windows/issues/new"
+            return f"{base}?title={urllib.parse.quote(title)}&body={urllib.parse.quote(body)}"
+
+        def _report_issue(_: ft.ControlEvent) -> None:
+            url = _build_issue_url()
+            if url:
+                try:
+                    page.launch_url(url)
+                except Exception as e:
+                    show_snack(f"Could not open browser: {e}")
+            else:
+                show_snack("No failures found in manifest — nothing to report.")
+
         def _copy_results(_: ft.ControlEvent) -> None:
             page.set_clipboard(_format_results_text())
             show_snack("Results copied to clipboard.")
+
+        report_issue_btn = ft.OutlinedButton(
+            "Report failures on GitHub",
+            on_click=_report_issue,
+            visible=False,
+            tooltip="Opens a pre-filled GitHub issue with failed tool names and manifest summary",
+        )
+
+        def _update_report_btn() -> None:
+            report_issue_btn.visible = _build_issue_url() is not None
+            try:
+                report_issue_btn.update()
+            except Exception:
+                pass
 
         results_tab_content = ft.Container(
             content=ft.Column(
@@ -1420,10 +1489,13 @@ def main_gui() -> None:
                         ft.OutlinedButton("Copy results", on_click=_copy_results),
                     ], spacing=8),
                     results_display_col,
-                    ft.OutlinedButton(
-                        "Open full HTML report",
-                        on_click=_open_html_report,
-                    ),
+                    ft.Row([
+                        ft.OutlinedButton(
+                            "Open full HTML report",
+                            on_click=_open_html_report,
+                        ),
+                        report_issue_btn,
+                    ], spacing=8),
                 ],
                 spacing=8, expand=True,
             ),

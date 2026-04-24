@@ -36,6 +36,12 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 13 — GUI failure reporter:
+        core/gui.py: _build_issue_url() reads manifest, collects failed tools, builds
+        pre-filled GitHub new-issue URL (title + body with version/profiles/failed list).
+        _report_issue() calls page.launch_url(). Results tab: "Report failures on GitHub"
+        OutlinedButton, hidden by default, shown when _build_issue_url() returns a URL.
+        _refresh_results() calls _update_report_btn() to keep visibility in sync.
 - [x] Pass 12 — Tier 2 code quality + docs:
         core/__init__.py: canonical ensure_repo_on_sys_path() + REPO_ROOT constant.
         core/finalize.py, ml_stack.py, system_scan.py: removed 3 duplicate
@@ -128,7 +134,10 @@ Code Quality
 - [ ] Review __future__ annotations ceremony (optional cleanup)
 
 Observability
-- [ ] Opt-in failure reporter (GitHub issue template link in GUI on error)
+- [x] Opt-in failure reporter — Results tab gains "Report failures on GitHub" button
+      (hidden when no failures; visible when manifest has failed tools). Clicking opens
+      a pre-filled GitHub new-issue URL with version, profiles, failed tool list, and
+      a note to attach devkit-manifest.json. Built via _build_issue_url() + page.launch_url().
 - [ ] Consider lightweight telemetry (issue template with manifest + profile)
 
 Documentation
