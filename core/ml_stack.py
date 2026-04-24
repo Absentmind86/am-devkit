@@ -118,22 +118,23 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
 
     _pip_ml_base(ctx, manifest, console)
 
+    _is_directml = report.torch_path_kind == "amd_directml"
+
     if ctx.install_ml_wheels and not ctx.dry_run:
         import subprocess
 
-        argv = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "torch",
-            "torchvision",
-            "torchaudio",
-            "--index-url",
-            report.pytorch_index_url,
-        ]
-        console.print("  [installing] PyTorch wheels via pip …")
+        if _is_directml:
+            argv = [sys.executable, "-m", "pip", "install", "--upgrade", "torch-directml"]
+            label = "PyTorch + DirectML (AMD GPU)"
+        else:
+            argv = [
+                sys.executable, "-m", "pip", "install", "--upgrade",
+                "torch", "torchvision", "torchaudio",
+                "--index-url", report.pytorch_index_url,
+            ]
+            label = "PyTorch wheels"
+
+        console.print(f"  [installing] {label} via pip …")
         proc = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600.0)
         tail = (proc.stdout + "\n" + proc.stderr).strip()[-2000:]
         if proc.returncode == 0:
@@ -144,7 +145,7 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
                 install_method="pip",
                 notes=tail,
             )
-            console.print("  [done] PyTorch pip install")
+            console.print(f"  [done] {label}")
         else:
             manifest.record_tool(
                 tool="pytorch-pip",
@@ -153,22 +154,32 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
                 install_method="pip",
                 notes=f"exit {proc.returncode}: {tail}",
             )
-            console.print(f"  [failed] PyTorch pip (exit {proc.returncode})")
+            console.print(f"  [failed] {label} (exit {proc.returncode})")
     elif ctx.install_ml_wheels and ctx.dry_run:
+        dry_note = (
+            "Would pip install torch-directml (AMD DirectX 12 GPU)"
+            if _is_directml
+            else f"Would pip install torch from {report.pytorch_index_url}"
+        )
         manifest.record_tool(
             tool="pytorch-pip",
             layer="ml_stack",
             status="planned",
             install_method="pip",
-            notes=f"Would pip install torch from {report.pytorch_index_url}",
+            notes=dry_note,
         )
         console.print("  [planned] PyTorch pip — dry-run")
     else:
+        skip_note = (
+            "Pass --install-ml-wheels to run pip install torch-directml (AMD GPU detected)."
+            if _is_directml
+            else "Pass --install-ml-wheels to run pip install torch."
+        )
         manifest.record_tool(
             tool="pytorch-pip",
             layer="ml_stack",
             status="skipped",
             install_method="pip",
-            notes="Pass --install-ml-wheels to run pip install torch.",
+            notes=skip_note,
         )
         console.print("  [skipped] PyTorch pip — use --install-ml-wheels to install")

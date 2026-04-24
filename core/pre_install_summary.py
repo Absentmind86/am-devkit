@@ -64,6 +64,21 @@ def _gpu_has_cuda(profile: dict[str, Any]) -> bool:
     return False
 
 
+def _gpu_is_amd(profile: dict[str, Any]) -> bool:
+    """Best-effort: did Layer 0 see an AMD GPU?"""
+    gpus = profile.get("gpus")
+    if not isinstance(gpus, list):
+        return False
+    for g in gpus:
+        if not isinstance(g, dict):
+            continue
+        vendor = str(g.get("vendor", "")).lower()
+        name = str(g.get("name", "")).lower()
+        if "amd" in vendor or "radeon" in name or "rx " in name:
+            return True
+    return False
+
+
 def _estimate_disk_mb(ctx: InstallContext) -> tuple[int, list[str]]:
     """Return (total_mb, breakdown_lines) for the summary panel."""
     from core.install_catalog import estimate_catalog_disk_mb
@@ -81,13 +96,16 @@ def _estimate_disk_mb(ctx: InstallContext) -> tuple[int, list[str]]:
         total += _OLLAMA_MB
         lines.append(f"  - Ollama runtime: ~{_OLLAMA_MB} MB (models not included)")
         if ctx.install_ml_wheels:
-            wheels = (
-                _ML_WHEELS_CUDA_MB
-                if _gpu_has_cuda(ctx.system_profile)
-                else _ML_WHEELS_CPU_MB
-            )
+            if _gpu_has_cuda(ctx.system_profile):
+                wheels = _ML_WHEELS_CUDA_MB
+                kind = "CUDA"
+            elif _gpu_is_amd(ctx.system_profile):
+                wheels = _ML_WHEELS_CPU_MB
+                kind = "DirectML (AMD GPU)"
+            else:
+                wheels = _ML_WHEELS_CPU_MB
+                kind = "CPU"
             total += wheels
-            kind = "CUDA" if wheels == _ML_WHEELS_CUDA_MB else "CPU"
             lines.append(f"  - PyTorch wheels ({kind}): ~{wheels / 1024:.1f} GB")
         if ctx.install_ml_base:
             total += _ML_BASE_MB

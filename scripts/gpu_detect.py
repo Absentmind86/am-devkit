@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 VendorKind = Literal["nvidia", "amd", "intel", "microsoft", "unknown"]
-TorchPathKind = Literal["nvidia_cuda", "cpu", "amd_rocm_note"]
+TorchPathKind = Literal["nvidia_cuda", "cpu", "amd_directml"]
 
 # Driver-reported maximum CUDA (from nvidia-smi) must be >= tuple to use that wheel line.
 # Ordered highest-first. Capped at the newest CUDA wheel line that appears on PyTorch's
@@ -39,10 +39,10 @@ _PYTORCH_CUDA_WHEELS: list[tuple[str, tuple[int, int]]] = [
 ]
 
 _CPU_INDEX = "https://download.pytorch.org/whl/cpu"
-_ROCM_NOTE = (
-    "PyTorch on Windows with AMD GPUs: ROCm support is limited. "
-    "Default recommendation is CPU wheels from the PyTorch index unless you "
-    "use an experimental ROCm build (not auto-selected here)."
+_DIRECTML_NOTE = (
+    "AMD GPU detected — torch-directml will be installed for DirectX 12 GPU acceleration. "
+    "DirectML works on all AMD Radeon/RX GPUs on Windows and is faster than CPU for any "
+    "real model workload. Note: torch-directml bundles its own PyTorch version."
 )
 
 
@@ -321,9 +321,9 @@ def detect_gpu_for_pytorch() -> GpuDetectionReport:
             "verify driver installation; using CPU PyTorch index until then."
         )
     elif discrete == "amd":
-        torch_path = "amd_rocm_note"
-        index_url = _CPU_INDEX
-        warnings.append(_ROCM_NOTE)
+        torch_path = "amd_directml"
+        index_url = _CPU_INDEX  # DirectML is pip-installed from PyPI, not the torch CDN
+        warnings.append(_DIRECTML_NOTE)
     elif discrete in {"intel", "microsoft"}:
         warnings.append(
             "No NVIDIA path selected — PyTorch GPU on this configuration typically "
@@ -343,8 +343,8 @@ def detect_gpu_for_pytorch() -> GpuDetectionReport:
             f"⚠️ NVIDIA driver reports CUDA {driver_cuda[0]}.{driver_cuda[1]}, "
             "below tracked PyTorch CUDA wheel lines — using CPU index."
         )
-    elif torch_path == "amd_rocm_note":
-        summary = "⚠️ AMD GPU detected — using CPU PyTorch index by default (see warnings for ROCm)."
+    elif torch_path == "amd_directml":
+        summary = "✅ AMD GPU detected — torch-directml (DirectX 12 GPU acceleration) will be installed."
     else:
         summary = "⚠️ CPU-only PyTorch index recommended (no working NVIDIA CUDA path detected)."
 
