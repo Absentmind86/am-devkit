@@ -31,8 +31,8 @@ class InstallContext:
     skip_summary: bool = False
     # Tools to skip even when profile gates match (Custom Mode / GUI exclusions).
     catalog_exclude_tools: frozenset[str] = field(default_factory=frozenset)
-    # WinUtil JSON: ``minimal`` → am-devkit-winutil.json; ``standard`` → am-devkit-winutil-standard.json
-    sanitation_preset: str = "minimal"
+    # WinUtil preset key (e.g. "Minimal", "Standard"). Matched case-insensitively against upstream preset.json.
+    sanitation_preset: str = "Minimal"
     # Skip rustup + rust toolchain install even when a profile would request it.
     skip_rust: bool = False
 

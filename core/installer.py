@@ -181,9 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--sanitation-preset",
-        choices=("minimal", "standard"),
-        default="minimal",
-        help="WinUtil JSON: minimal (4 tweaks) or standard (CTT preset.json 'Standard' set, 13 tweaks).",
+        default="Minimal",
+        help="WinUtil preset key (e.g. 'Minimal', 'Standard'). Matched against upstream preset.json at runtime.",
     )
     parser.add_argument(
         "--skip-restore-point",
@@ -272,9 +271,7 @@ def main(argv: list[str] | None = None) -> int:
         str(x).strip() for x in (args.exclude_catalog_tool or []) if str(x).strip()
     )
 
-    spreset: str = (args.sanitation_preset or "minimal").strip().lower()
-    if spreset not in ("minimal", "standard"):
-        spreset = "minimal"
+    spreset: str = (args.sanitation_preset or "Minimal").strip() or "Minimal"
 
     ctx = InstallContext(
         repo_root=_REPO_ROOT,

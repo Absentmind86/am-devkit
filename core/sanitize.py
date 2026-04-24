@@ -6,7 +6,9 @@ Upstream license: MIT, Chris Titus Tech / CT Tech Group LLC — see docs/THIRD_P
 
 from __future__ import annotations
 
+import json
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,30 +19,35 @@ if TYPE_CHECKING:
     from core.manifest import Manifest
 
 
-def _winutil_config_path(ctx: InstallContext) -> Path:
-    from core.install_context import winutil_config_path_for_preset
+def _resolve_config(ctx: InstallContext) -> tuple[Path, bool]:
+    """Return ``(config_path, is_temp)`` for the selected preset.
 
-    return winutil_config_path_for_preset(
-        ctx.repo_root,
-        getattr(ctx, "sanitation_preset", "minimal"),
-    )
+    Tries to fetch the live tweaks list from the CTT preset.json and writes them
+    to a temporary file so the config always reflects the upstream preset.  Falls
+    back to the static local JSON files when the network is unavailable.
+    """
+    preset_key = getattr(ctx, "sanitation_preset", "Minimal") or "Minimal"
+
+    # --- live path ---
+    try:
+        from core.winutil_presets import get_tweaks_for_preset
+        tweaks = get_tweaks_for_preset(preset_key, timeout=6.0)
+        if tweaks:
+            tmp = Path(tempfile.mktemp(suffix=".json", prefix="am-devkit-winutil-"))
+            tmp.write_text(json.dumps({"WPFTweaks": tweaks}), encoding="utf-8")
+            return tmp, True
+    except Exception:
+        pass
+
+    # --- local fallback ---
+    from core.install_context import winutil_config_path_for_preset
+    return winutil_config_path_for_preset(ctx.repo_root, preset_key), False
 
 
 def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     """Invoke Chris Titus WinUtil with our JSON preset (opt-in: ``ctx.run_sanitation``)."""
     console.print("[bold]Layer 1 — Windows sanitization[/bold]")
-    preset_name = getattr(ctx, "sanitation_preset", "minimal")
-    config_path = _winutil_config_path(ctx)
-    if not config_path.is_file():
-        manifest.record_tool(
-            tool="ctt-winutil",
-            layer="sanitize",
-            status="failed",
-            install_method="winutil",
-            notes=f"Missing config file: {config_path}",
-        )
-        console.print(f"  [failed] WinUtil — missing {config_path}")
-        return
+    preset_name = getattr(ctx, "sanitation_preset", "Minimal") or "Minimal"
 
     if not ctx.run_sanitation:
         manifest.record_tool(
@@ -59,12 +66,24 @@ def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> N
             layer="sanitize",
             status="planned",
             install_method="winutil",
-            notes=f"Would invoke WinUtil with config {config_path}",
+            notes=f"Would invoke WinUtil with preset '{preset_name}'",
         )
-        console.print(f"  [planned] WinUtil — dry-run ({config_path.name})")
+        console.print(f"  [planned] WinUtil — dry-run (preset: {preset_name})")
         return
 
-    # Documented pattern: iex "& { $(irm 'https://christitus.com/win') } -Config <path> -Run"
+    config_path, is_temp = _resolve_config(ctx)
+    source = "live" if is_temp else "local fallback"
+    if not config_path.is_file():
+        manifest.record_tool(
+            tool="ctt-winutil",
+            layer="sanitize",
+            status="failed",
+            install_method="winutil",
+            notes=f"Config not found: {config_path}",
+        )
+        console.print(f"  [failed] WinUtil — config not found: {config_path}")
+        return
+
     cfg = str(config_path).replace("'", "''")
     ps = (
         "$ErrorActionPreference = 'Stop'; "
@@ -72,7 +91,7 @@ def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> N
         "iex \"& { $(irm 'https://christitus.com/win') } -Config $config -Run\""
     )
     console.print(
-        f"  [installing] WinUtil (CTT) — {config_path.name} — this may take several minutes …"
+        f"  [installing] WinUtil (CTT) — preset: {preset_name} ({source}) — this may take several minutes …"
     )
     try:
         proc = subprocess.run(
@@ -93,6 +112,9 @@ def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> N
         )
         console.print(f"  [failed] WinUtil — {exc}")
         return
+    finally:
+        if is_temp:
+            config_path.unlink(missing_ok=True)
 
     tail = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()[-2000:]
     if proc.returncode == 0:

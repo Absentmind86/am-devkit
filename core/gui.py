@@ -225,9 +225,7 @@ def _preview_context(ui: dict[str, Any], system_profile: dict[str, Any]) -> Any:
     wsl_default = None
     if ui["enable_wsl"].value and not ui["wsl_skip_distro"].value:
         wsl_default = (ui["wsl_distro"].value or "Ubuntu").strip() or "Ubuntu"
-    sp = str(getattr(ui.get("sanitation_preset"), "value", "minimal") or "minimal").strip().lower()
-    if sp not in ("minimal", "standard"):
-        sp = "minimal"
+    sp = str(getattr(ui.get("sanitation_preset"), "value", "Minimal") or "Minimal").strip() or "Minimal"
     return InstallContext(
         repo_root=_REPO_ROOT,
         system_profile_path=_REPO_ROOT / "system-profile.json",
@@ -262,8 +260,8 @@ def _argv_for_installer(ui: dict[str, Any]) -> list[str]:
         argv.extend(["--exclude-catalog-tool", tool])
     if ui["run_sanitation"].value:
         argv.append("--run-sanitation")
-        sp = str(getattr(ui.get("sanitation_preset"), "value", "minimal") or "minimal").strip().lower()
-        argv.extend(["--sanitation-preset", sp if sp in ("minimal", "standard") else "minimal"])
+        sp = str(getattr(ui.get("sanitation_preset"), "value", "Minimal") or "Minimal").strip() or "Minimal"
+        argv.extend(["--sanitation-preset", sp])
     if ui["skip_restore_point"].value:
         argv.append("--skip-restore-point")
     if ui["install_ml_wheels"].value:
@@ -329,11 +327,26 @@ def main_gui() -> None:
         # ------------------------------------------------------------------
         dry_run         = ft.Switch(label="Dry run (no destructive writes)", value=True)
         run_sanitation  = ft.Switch(label="Run Windows sanitation (CTT WinUtil — optional, disruptive)", value=False)
-        sanitation_preset_dd = ft.Dropdown(
-            label="WinUtil tweak preset",
-            options=[ft.dropdown.Option("minimal"), ft.dropdown.Option("standard")],
-            value="minimal", width=400, disabled=True,
-            hint_text="minimal = 4 tweaks · standard = CTT preset.json Standard (13)",
+        sanitation_radios_col = ft.Column([], spacing=0)
+        sanitation_preset_rg = ft.RadioGroup(value="Minimal", content=sanitation_radios_col)
+        sanitation_load_text = ft.Text(
+            "Loading WinUtil presets…",
+            size=12, italic=True, color=ft.Colors.ON_SURFACE_VARIANT,
+        )
+        sanitation_presets_section = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("WinUtil tweak preset", weight=ft.FontWeight.W_500, size=13),
+                    sanitation_load_text,
+                ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                sanitation_preset_rg,
+                ft.Text(
+                    "Powered by CTT WinUtil (auto-updated from upstream preset.json)",
+                    size=11, italic=True, color=ft.Colors.ON_SURFACE_VARIANT,
+                ),
+            ], spacing=6),
+            visible=False,
+            padding=ft.padding.only(left=8, top=6, bottom=4),
         )
         skip_rp       = ft.Switch(label="Skip system restore point", value=False)
         skip_dotfiles = ft.Switch(label="Skip dotfile seeding", value=False)
@@ -362,7 +375,7 @@ def main_gui() -> None:
             "common_opt_out":    common_opt_out,
             "dry_run":           dry_run,
             "run_sanitation":    run_sanitation,
-            "sanitation_preset": sanitation_preset_dd,
+            "sanitation_preset": sanitation_preset_rg,
             "skip_restore_point": skip_rp,
             "skip_dotfiles":     skip_dotfiles,
             "skip_rust":         skip_rust,
@@ -934,14 +947,14 @@ def main_gui() -> None:
             sync_previews()
 
         def on_sanitation_change(e: ft.ControlEvent) -> None:
-            sanitation_preset_dd.disabled = not bool(e.control.value)
-            sanitation_preset_dd.update()
+            sanitation_presets_section.visible = bool(e.control.value)
+            sanitation_presets_section.update()
             sync_previews()
 
         run_sanitation.on_change = on_sanitation_change
         for sw in (dry_run, skip_rp, skip_dotfiles, skip_rust, assume_yes, skip_summary, enable_wsl, wsl_skip):
             sw.on_change = bind_switch
-        sanitation_preset_dd.on_change = bind_switch
+        sanitation_preset_rg.on_change = bind_switch
         wsl_distro.on_change = bind_switch
 
         def on_reuse_change(e: ft.ControlEvent) -> None:
@@ -1026,6 +1039,39 @@ def main_gui() -> None:
                 page.update()
             except Exception:
                 pass
+
+        def _load_presets_thread() -> None:
+            try:
+                from core.winutil_presets import fallback_presets, fetch_presets
+                try:
+                    presets = fetch_presets(timeout=6.0)
+                except Exception:
+                    presets = fallback_presets()
+                controls: list[ft.Control] = []
+                for p in presets:
+                    controls.append(ft.Radio(value=p.key, label=p.key))
+                    controls.append(ft.Container(
+                        content=ft.Text(
+                            p.description, size=11, italic=True,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        padding=ft.padding.only(left=32, bottom=6),
+                    ))
+                sanitation_radios_col.controls = controls
+                keys = {p.key for p in presets}
+                if sanitation_preset_rg.value not in keys:
+                    sanitation_preset_rg.value = presets[0].key if presets else "Minimal"
+                sanitation_load_text.value = ""
+                try:
+                    sanitation_presets_section.update()
+                except Exception:
+                    pass
+            except Exception as exc:
+                sanitation_load_text.value = f"Could not load presets: {exc}"
+                try:
+                    sanitation_load_text.update()
+                except Exception:
+                    pass
 
         def run_system_scan_manual(_: ft.ControlEvent) -> None:
             scan_status.value = "Running scan…"
@@ -1167,7 +1213,7 @@ def main_gui() -> None:
             content=ft.Column(
                 [
                     ft.Text("Install options", weight=ft.FontWeight.BOLD, size=18),
-                    dry_run, run_sanitation, sanitation_preset_dd,
+                    dry_run, run_sanitation, sanitation_presets_section,
                     skip_rp, skip_dotfiles, skip_rust, assume_yes, skip_summary,
                     ft.Divider(),
                     ml_wheels, ml_base,
@@ -1368,6 +1414,7 @@ def main_gui() -> None:
         # Auto-run the system scan in the background so tool detection
         # and disk/time estimates are ready as soon as possible.
         threading.Thread(target=_auto_scan_thread, daemon=True).start()
+        threading.Thread(target=_load_presets_thread, daemon=True).start()
 
     ft.app(target=main)
 
