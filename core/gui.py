@@ -65,7 +65,7 @@ PROFILE_HINTS: dict[str, str] = {
     "web-fullstack":     "Node via NVM, Go, JDK 21, .NET 8, Bruno, DBeaver, PostgreSQL, Redis, mkcert, ngrok, Docker, kubectl, Helm, cloud CLIs, JetBrains Toolbox.",
     "systems":           "Rust (rustup), Go, .NET 8, JDK 21, CMake, Ninja, Docker, kubectl, Helm, Podman, Wireshark, Nmap, Sysinternals, cloud CLIs.",
     "game-dev":          "Unity Hub, Godot, .NET 8, JDK 21, Rust (rustup), CMake, Ninja, Wireshark, JetBrains Toolbox.",
-    "hardware-robotics": "Arduino IDE, PuTTY, Rust (rustup), CMake, Ninja, Wireshark, Sysinternals, pyserial / USB tooling.",
+    "hardware-robotics": "Arduino IDE, PuTTY, CMake, Ninja, Wireshark, Sysinternals, Rust toolchain (rustup).",
     "custom":            "View-mode toggle — exposes every stack's tools so you can cherry-pick anything.",
 }
 

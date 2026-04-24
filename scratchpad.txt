@@ -36,6 +36,14 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 10 — README accuracy + docs drift fixes:
+        README Profile table rewritten row-by-row to match actual catalog (removed
+        HuggingFace, Open WebUI, Playwright, Visual Studio Community, DirectX, MSVC,
+        PlatformIO, Zadig, Sigrok; added actual catalog tools per profile).
+        GPU diagram: "installed automatically" → "selected automatically (opt-in toggle)".
+        docs/PROJECT.md: all 5 profile tooltip blocks annotated [Implemented] / [Planned];
+        settings.json tree comment corrected to "Stub ({}) — not currently seeded".
+        core/gui.py: hardware-robotics PROFILE_HINTS: removed "pyserial / USB tooling".
 - [x] Pass 9 — WinUtil tweak list in pre-install summary:
         pre_install_summary.py: _winutil_tweak_lines() reads local JSON config (no network),
         strips WPFTweaks prefix, returns formatted line with count + names (truncated at 10

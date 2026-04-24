@@ -47,7 +47,7 @@ Core installs: Git, VS Code, Python, Terminal, Scoop, 7-Zip + modern CLI suite
 Your selected profiles install in order
        │
        ▼
-GPU detected → correct PyTorch build installed automatically
+GPU detected → correct PyTorch build selected automatically (opt-in toggle)
        │
        ▼
 Post-install: Path Auditor, HTML report, dotfiles, restore script
@@ -61,11 +61,11 @@ Select one or more. They stack. Each has an info button that shows exactly what 
 
 | Profile | What It's For |
 |---|---|
-| 🤖 **AI / ML** | PyTorch (GPU-matched automatically), HuggingFace stack, Ollama, Jupyter, Open WebUI |
-| 🌐 **Web / Full-Stack** | Node, Docker, PostgreSQL, Redis, Bruno, Playwright, cloud CLIs |
-| 🎮 **Game Dev** | Unity Hub, Godot, Visual Studio Community, DirectX, CMake |
-| ⚙️ **Systems / Low-Level** | Rust, C/C++, MSVC, Visual Studio Community, Wireshark |
-| 🔌 **Hardware / Robotics** | Arduino, PlatformIO, pyserial, Zadig, PuTTY, Sigrok |
+| 🤖 **AI / ML** | Ollama (local LLM runtime), Docker/Podman Desktop, cloud CLIs (AWS / Azure / GCP), Kubernetes (kubectl / helm), PostgreSQL, Redis, DBeaver, Bruno, JetBrains Toolbox. Opt-in toggle: PyTorch GPU-matched (CUDA / DirectML / CPU-only) + pip ML base (numpy / pandas / matplotlib / scikit-learn / jupyter) |
+| 🌐 **Web / Full-Stack** | Node.js via NVM, .NET SDK 8, Java (Temurin JDK 21), Docker/Podman Desktop, PostgreSQL, Redis, cloud CLIs (AWS / Azure / GCP), Bruno (API client), DBeaver, JetBrains Toolbox |
+| 🎮 **Game Dev** | Unity Hub, Godot, CMake, Ninja, .NET SDK 8, JetBrains Toolbox |
+| ⚙️ **Systems / Low-Level** | Rust toolchain (via rustup), Wireshark, Nmap, Sysinternals Suite, CMake, Ninja, cloud CLIs, JetBrains Toolbox |
+| 🔌 **Hardware / Robotics** | Arduino IDE, PuTTY, CMake, Ninja, Sysinternals Suite, Wireshark; Rust toolchain (via rustup) |
 | ⚡ **Absentmind Mode** | All of the above. No questions. |
 | 🎛️ **Custom** | Pick individual tools from any profile. |
 

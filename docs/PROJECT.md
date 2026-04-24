@@ -761,7 +761,7 @@ Layer 8.5 outputs:
 
 ### Profile: AI / ML Developer
 
-> *ℹ️ PyTorch (GPU-matched automatically), numpy, pandas, scikit-learn, Jupyter, HuggingFace stack (transformers, diffusers, accelerate, datasets, peft), Ollama, llama-cpp-python, Open WebUI, LangChain, LiteLLM, Gradio, Streamlit, FastAPI, Continue.dev, DBeaver, Docker + GPU passthrough*
+> *ℹ️ **Implemented:** Ollama (local LLM runtime), DBeaver, Docker/Podman Desktop, cloud CLIs (AWS/Azure/GCP), kubectl/helm, PostgreSQL, Redis, Bruno, JetBrains Toolbox, ngrok, mkcert, Rust toolchain (rustup). **Opt-in toggles:** PyTorch GPU-matched (CUDA/DirectML/CPU-only), ML pip base (numpy/pandas/matplotlib/scikit-learn/jupyter/ipython). **Planned:** HuggingFace stack, Open WebUI, LangChain, llama-cpp-python, GPU passthrough configuration.*
 
 GPU detection logic runs automatically. Installs the correct PyTorch wheel for your hardware. No manual `--index-url` hunting.
 
@@ -769,25 +769,25 @@ GPU detection logic runs automatically. Installs the correct PyTorch wheel for y
 
 ### Profile: Web / Full-Stack Developer
 
-> *ℹ️ Node.js via nvm-windows, npm/pnpm/yarn, React tooling, Bruno (API client), mkcert (local HTTPS), Docker, PostgreSQL, Redis, MongoDB (optional), DBeaver, Playwright (E2E testing), ngrok, kubectl, helm, k9s, cloud CLIs (AWS/GCP/Azure — individual checkboxes)*
+> *ℹ️ **Implemented:** Node.js via NVM, .NET SDK 8, Java (Temurin JDK 21), Go, Docker/Podman Desktop, PostgreSQL, Redis, cloud CLIs (AWS/Azure/GCP), kubectl/helm, Bruno, DBeaver, mkcert, ngrok, JetBrains Toolbox. **Planned:** MongoDB, Playwright, k9s, pnpm/yarn tooling.*
 
 ---
 
 ### Profile: Game Developer
 
-> *ℹ️ Unity Hub, Godot, Visual Studio Community, CMake, Ninja, vcpkg, DirectX SDK, OBS Studio (capture/streaming), ShareX*
+> *ℹ️ **Implemented:** Unity Hub, Godot, CMake, Ninja, .NET SDK 8, Java (Temurin JDK 21), JetBrains Toolbox, Wireshark. **Planned:** Visual Studio Community, vcpkg, DirectX SDK.*
 
 ---
 
 ### Profile: Systems / Low-Level
 
-> *ℹ️ Rust (rustup), C/C++ (MSVC Build Tools), Visual Studio Community, CMake, Ninja, vcpkg, MinGW/GCC (optional), Wireshark, nmap, .NET SDK (optional), Go (optional)*
+> *ℹ️ **Implemented:** Rust toolchain (rustup), CMake, Ninja, Go, .NET SDK 8, Java (Temurin JDK 21), Wireshark, Nmap, Sysinternals Suite, Docker/Podman Desktop, cloud CLIs, kubectl/helm, JetBrains Toolbox. **Planned:** MSVC Build Tools, Visual Studio Community, vcpkg, MinGW/GCC.*
 
 ---
 
 ### Profile: Hardware / Embedded / Robotics
 
-> *ℹ️ Arduino IDE + Arduino CLI, PlatformIO (VS Code extension + CLI), pyserial, python-can, hidapi, Zadig (WinUSB driver tool), PuTTY (serial terminal), TeraTerm (serial logging/capture), Sigrok + PulseView (open source logic analyzer)*
+> *ℹ️ **Implemented:** Arduino IDE, PuTTY, CMake, Ninja, Sysinternals Suite, Wireshark; Rust toolchain (rustup). **Planned:** Arduino CLI, PlatformIO, pyserial, python-can, hidapi, Zadig, TeraTerm, Sigrok/PulseView.*
 
 For developers working with microcontrollers, sensors, serial protocols, and physical hardware. Pairs naturally with the AI/ML profile for bridging embedded work with Python inference.
 
@@ -889,7 +889,7 @@ absentmind-devkit/
 │   │   ├── absentmind-mode.toml
 │   │   └── extras.toml
 │   └── vscode/
-│       ├── settings.json       ← Seeded VS Code settings
+│       ├── settings.json       ← Stub ({}) — not currently seeded; future intent
 │       └── extensions.json     ← Extension ID list
 │
 ├── templates/
