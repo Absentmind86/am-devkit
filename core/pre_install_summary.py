@@ -182,6 +182,25 @@ def _time_bracket(profile: dict[str, Any], steps: int) -> str:
     return f"~{lo + bump}-{hi + bump} min (heuristic; network class: {lat})"
 
 
+def _winutil_tweak_lines(repo_root: Path, sanitation_preset: str) -> list[str]:
+    """Return summary lines listing the WPFTweaks that will be applied."""
+    from core.install_context import winutil_config_path_for_preset
+
+    cfg = winutil_config_path_for_preset(repo_root, sanitation_preset)
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    tweaks = data.get("WPFTweaks") if isinstance(data, dict) else None
+    if not isinstance(tweaks, list) or not tweaks:
+        return []
+    # Strip the common "WPFTweaks" prefix for readability.
+    names = [t.removeprefix("WPFTweaks") if isinstance(t, str) else str(t) for t in tweaks]
+    preview = names[:10]
+    suffix = f", ... (+{len(names) - 10} more)" if len(names) > 10 else ""
+    return [f"  WinUtil tweaks ({len(names)}): {', '.join(preview)}{suffix}"]
+
+
 def _winutil_config_hint(
     repo_root: Path,
     *,
@@ -283,6 +302,7 @@ def pre_install_summary_lines(ctx: InstallContext) -> list[str]:
             else "am-devkit-winutil.json"
         )
         body_lines.append(f"WinUtil preset: {sp} ({cfg_name})")
+        body_lines.extend(_winutil_tweak_lines(ctx.repo_root, sp))
     body_lines.append(f"WSL DISM + default distro: {'yes' if ctx.enable_wsl else 'no'}" + (f" ({ctx.wsl_default_distro})" if ctx.wsl_default_distro else ""))
     if ctx.enable_wsl and not _wsl_already_enabled():
         body_lines.append(

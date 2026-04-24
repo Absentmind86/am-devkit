@@ -36,6 +36,11 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 9 — WinUtil tweak list in pre-install summary:
+        pre_install_summary.py: _winutil_tweak_lines() reads local JSON config (no network),
+        strips WPFTweaks prefix, returns formatted line with count + names (truncated at 10
+        with "+N more"). Wired in after the "WinUtil preset:" line when run_sanitation=True.
+        Minimal: 4 tweaks listed in full. Standard: 13 tweaks, 10 shown + "(+3 more)".
 - [x] Pass 8 — Code signing decision + SmartScreen docs:
         Decision: no signing for v0.8 (irm|iex + git clone have no MOTW, no block);
         Azure Trusted Signing planned for v1.0. README: "SmartScreen / execution policy
@@ -307,8 +312,9 @@ Semi-automatic installs transparency table:
 
 Actions needed:
 - [x] Pre-install summary: add explicit extensions line (20 total, skip if editor excluded) — done in Pass 6
-- [ ] Pre-install summary + GUI: show actual WinUtil tweak list when sanitation enabled
-      (tweak IDs already available via winutil_presets.get_tweaks_for_preset) — scheduled Pass 9
+- [x] Pre-install summary: show actual WinUtil tweak list when sanitation enabled — done in Pass 9.
+      Reads local JSON config (no network); strips WPFTweaks prefix; shows count + names;
+      truncates at 10 with "(+N more)" suffix.
 - [x] Remove stale Nerd Fonts references (gui.py FOUNDATION_ALWAYS_COUNT comment,
       pre_install_summary.py comment) — done in Pass 6
 
