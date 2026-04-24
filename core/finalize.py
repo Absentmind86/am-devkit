@@ -6,7 +6,6 @@ import html
 import json
 import os
 import shutil
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,14 +17,7 @@ if TYPE_CHECKING:
     from core.manifest import Manifest
 
 
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
-
-
-def _ensure_repo_on_sys_path() -> None:
-    root = str(_repo_root())
-    if root not in sys.path:
-        sys.path.insert(0, root)
+from core import ensure_repo_on_sys_path
 
 
 def _html_escape(text: str) -> str:
@@ -422,7 +414,7 @@ def build_post_install_html(
 
 def run_finalize(ctx: InstallContext, manifest: Manifest, console: Console) -> dict[str, Any]:
     """Run PATH audit, write fingerprint JSON, flush manifest, emit HTML report."""
-    _ensure_repo_on_sys_path()
+    ensure_repo_on_sys_path()
     from core.launchpad import build_launchpad_section
     from core.restore_bundle import refresh_restore_script_from_disk
     from scripts.path_auditor import audit_path

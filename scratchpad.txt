@@ -36,6 +36,13 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 12 — Tier 2 code quality + docs:
+        core/__init__.py: canonical ensure_repo_on_sys_path() + REPO_ROOT constant.
+        core/finalize.py, ml_stack.py, system_scan.py: removed 3 duplicate
+        _ensure_repo_on_sys_path() + _repo_root() pairs; replaced with import from core.
+        Cleaned unused sys/Path imports. ruff clean, 90 tests pass.
+        README.md: "Troubleshooting" section (winget, fault isolation, WSL reboot,
+        Python PATH, WinUtil pin bump pointer).
 - [x] Pass 11 — AGENTS.md file tree sync:
         Added VERSION, pyproject.toml, .github/workflows/ci.yml,
         scripts/smoke-test-winget-ids.py, tests/ directory (conftest.py +
@@ -115,7 +122,9 @@ TIER 2 — POST-RELEASE POLISH
 ==============================
 
 Code Quality
-- [ ] DRY helper for _ensure_repo_on_sys_path() (appears in 6+ files)
+- [x] DRY helper for _ensure_repo_on_sys_path() — canonical ensure_repo_on_sys_path() +
+      REPO_ROOT in core/__init__.py; 3 local duplicates in finalize.py, ml_stack.py,
+      system_scan.py replaced with imports. Unused sys/Path imports cleaned up. 90 tests pass.
 - [ ] Review __future__ annotations ceremony (optional cleanup)
 
 Observability
@@ -123,8 +132,11 @@ Observability
 - [ ] Consider lightweight telemetry (issue template with manifest + profile)
 
 Documentation
-- [ ] Bump playbook for WinUtil pin (docstring exists, but link from README?)
-- [ ] Troubleshooting guide (common Winget failures, offline fallbacks)
+- [x] Bump playbook for WinUtil pin — linked from README Troubleshooting section;
+      full steps already in core/winutil_pin.py module docstring.
+- [x] Troubleshooting guide — README "Troubleshooting" section added: winget source
+      reset, fault-isolated retry, winget hang workaround, WSL reboot, Python PATH,
+      WinUtil pin bump pointer.
 
 
 TIER 3 — DEFER / LOW PRIORITY

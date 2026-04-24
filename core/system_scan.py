@@ -48,16 +48,7 @@ _DRIVER_STALE_DAYS: Final[int] = 540  # ~18 months
 _WMI_QUERY_TIMEOUT_S: Final[float] = 60.0
 
 
-def _repo_root() -> Path:
-    """Return repository root (parent of ``core``)."""
-    return Path(__file__).resolve().parents[1]
-
-
-def _ensure_repo_on_sys_path() -> None:
-    """Allow ``from scripts.gpu_detect import …`` when running as a script."""
-    root = str(_repo_root())
-    if root not in sys.path:
-        sys.path.insert(0, root)
+from core import ensure_repo_on_sys_path
 
 
 def _which(executable: str) -> Path | None:
@@ -521,7 +512,7 @@ def build_system_profile(
     If *wmi_payload* is ``None`` and the host is Windows, WMI is queried automatically.
     Pass a pre-fetched payload in tests.
     """
-    _ensure_repo_on_sys_path()
+    ensure_repo_on_sys_path()
     from scripts.gpu_detect import detect_gpu_for_pytorch, vendor_from_pnp_device_id
 
     warnings: list[str] = list(wmi_warnings or [])

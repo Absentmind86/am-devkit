@@ -255,6 +255,28 @@ See **[docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)** for attributi
 
 ---
 
+## Troubleshooting
+
+**`winget` fails mid-install with a source error**
+Run `winget source reset --force` to refresh the msstore/winget source index, then re-run the installer — idempotent steps will skip already-installed tools.
+
+**A tool shows `[failed]` in the HTML report but the rest completed**
+Each layer is fault-isolated: one failure never aborts the run. Re-run with `--dry-run` first to confirm the tool is still missing, then run again without `--dry-run` — the tool will be retried while everything else skips.
+
+**`winget install` hangs interactively**
+AM-DevKit passes `--accept-package-agreements --accept-source-agreements` to all winget calls. If a package still prompts, it may have changed its installer type. Pin or exclude it via the GUI Custom Mode or `--exclude-catalog-tool <id>` and file an issue.
+
+**WSL install fails after enabling (exit 3010 or 50)**
+This is a first-time WSL enable that requires a reboot. The installer detects exit 3010 and prints a REBOOT REQUIRED notice. Reboot Windows, then re-run the installer with the same flags — idempotent steps skip and WSL distro install resumes. See `Known caveats` above.
+
+**Python not found after install**
+Run `Update-ProcessPathFromMachine` in a new PowerShell window (this function is in `bootstrap/install.ps1`) or simply open a fresh terminal — Python's installer registers its PATH entry in the Machine scope, which the current session may not yet see.
+
+**WinUtil pin is outdated**
+The bump playbook is in the docstring of [`core/winutil_pin.py`](core/winutil_pin.py): download the new release, compute `Get-FileHash -Algorithm SHA256`, update `WINUTIL_TAG` + both SHA256 constants, test on a VM, open a PR.
+
+---
+
 ## Contributing
 
 This project is pre-release. The architecture is locked and documented in [`docs/PROJECT.md`](docs/PROJECT.md).

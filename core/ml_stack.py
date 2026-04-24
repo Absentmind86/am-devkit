@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from core.winget_util import ensure_winget_package, which
@@ -16,12 +15,7 @@ if TYPE_CHECKING:
     from core.manifest import Manifest
 
 
-def _ensure_repo_on_sys_path() -> Path:
-    root = Path(__file__).resolve().parents[1]
-    s = str(root)
-    if s not in sys.path:
-        sys.path.insert(0, s)
-    return root
+from core import ensure_repo_on_sys_path
 
 
 def _pip_ml_base(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
@@ -81,7 +75,7 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
         console.print("  [skipped] GPU / PyTorch — ai-ml not selected")
         return
 
-    _ensure_repo_on_sys_path()
+    ensure_repo_on_sys_path()
     from scripts.gpu_detect import detect_gpu_for_pytorch
 
     report = detect_gpu_for_pytorch()
