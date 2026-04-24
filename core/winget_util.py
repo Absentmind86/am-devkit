@@ -70,13 +70,18 @@ def run_winget_install(
 
 
 # Winget HRESULT codes that mean "nothing to do — already at latest version".
-# Returned as unsigned DWORD by GetExitCodeProcess; Python subprocess preserves
-# the unsigned value on Windows, but handle the signed int32 form too for safety.
+# 0x8A15002B is the code observed in practice for "No newer package versions
+# are available from the configured sources." when running winget install on
+# an already-installed package.  The others are kept as belt-and-suspenders.
+# Python subprocess on Windows returns the unsigned DWORD from
+# GetExitCodeProcess; handle the signed int32 form too for safety.
 _WINGET_ALREADY_INSTALLED_CODES: frozenset[int] = frozenset({
-    0x8A150101,                   # No applicable update / no newer version
-    0x8A15010C,                   # No applicable update (alternate code)
-    0x8A15014B,                   # Package already installed
-    0x8A150101 - 0x100000000,     # signed int32 equivalents
+    0x8A15002B,                   # No newer version available (observed in practice)
+    0x8A150101,                   # No applicable update (alternate)
+    0x8A15010C,                   # No applicable update (alternate)
+    0x8A15014B,                   # Package already installed (alternate)
+    0x8A15002B - 0x100000000,     # signed int32 equivalents
+    0x8A150101 - 0x100000000,
     0x8A15010C - 0x100000000,
     0x8A15014B - 0x100000000,
 })

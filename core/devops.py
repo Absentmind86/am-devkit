@@ -45,6 +45,28 @@ def run_devops(ctx: InstallContext, manifest: Manifest, console: Console) -> Non
     if ctx.wsl_default_distro:
         ensure_wsl_default_distro(ctx, manifest, console, ctx.wsl_default_distro)
 
+    # Docker Desktop fails with "C:\ProgramData\DockerDesktop must be owned by
+    # an elevated account" when a prior partial install left that directory owned
+    # by a non-admin process.  Fix ownership upfront so the installer can proceed.
+    if not ctx.dry_run:
+        selected = set(ctx.profiles)
+        docker_wanted = any(
+            e.tool == "docker-desktop" and e.applies_to(selected) and e.tool not in ctx.catalog_exclude_tools
+            for e in catalog_entries_for_layer("devops")
+        )
+        if docker_wanted:
+            from core.pwsh_util import run_powershell
+            run_powershell(
+                r"""
+$dir = 'C:\ProgramData\DockerDesktop'
+if (Test-Path $dir) {
+    & takeown.exe /F $dir /R /D Y 2>&1 | Out-Null
+    & icacls.exe $dir /grant "BUILTIN\Administrators:(OI)(CI)F" /T /Q 2>&1 | Out-Null
+}
+""",
+                timeout_s=60.0,
+            )
+
     # Docker Desktop, kubectl, Helm, PostgreSQL, Redis, cloud CLIs, etc. are all
     # catalog-driven — profile gates and user excludes are applied automatically.
     install_catalog_layer(ctx, manifest, console, "devops")

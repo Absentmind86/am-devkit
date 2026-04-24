@@ -94,7 +94,15 @@ def ensure_scoop(
 ) -> None:
     """Install Scoop (user scope) when ``scoop`` is not available."""
     tool = "scoop"
-    detect_ps = r"if (Get-Command scoop -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
+    # Detection: also look in the default Scoop shims dir in case it was just
+    # installed but its shims are not yet in the machine/user PATH env var.
+    detect_ps = r"""
+$scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+if ((Test-Path $scoopShims) -and ($env:PATH -notlike "*$scoopShims*")) {
+    $env:PATH = "$scoopShims;$env:PATH"
+}
+if (Get-Command scoop -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }
+"""
     code_d, _, _ = run_powershell(detect_ps, timeout_s=30.0)
     if code_d == 0:
         manifest.record_tool(
@@ -119,17 +127,30 @@ def ensure_scoop(
         return
 
     install_ps = r"""
-$ErrorActionPreference = 'Stop'
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-# Scoop refuses to install when running as Administrator by default.
-# Detect elevation and pass -RunAsAdmin to the installer when needed.
+$ErrorActionPreference = 'Continue'
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $scoopScript = Invoke-RestMethod -Uri https://get.scoop.sh
+# -RunAsAdmin was added in later Scoop installer versions; fall back gracefully.
 if ($isAdmin) {
-    & ([scriptblock]::Create($scoopScript)) -RunAsAdmin
+    try {
+        & ([scriptblock]::Create($scoopScript)) -RunAsAdmin
+    } catch {
+        if ($_.FullyQualifiedErrorId -like '*NamedParameterNotFound*' -or $_.Exception.Message -like '*RunAsAdmin*') {
+            Write-Host 'Scoop installer does not support -RunAsAdmin; retrying without it.'
+            & ([scriptblock]::Create($scoopScript))
+        } else {
+            throw
+        }
+    }
 } else {
     & ([scriptblock]::Create($scoopScript))
 }
+# Verify installation — shims may not be on PATH yet in this session.
+$scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+if (Test-Path (Join-Path $scoopShims 'scoop.ps1')) { exit 0 }
+if (Get-Command scoop -ErrorAction SilentlyContinue) { exit 0 }
+exit 1
 """
     console.print(f"  [installing] {tool} …")
     code, out, err = run_powershell(install_ps, timeout_s=600.0)
@@ -174,6 +195,10 @@ def ensure_scoop_cli_bundle(
 
     ps = r"""
 $ErrorActionPreference = 'Continue'
+$scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+if ((Test-Path $scoopShims) -and ($env:PATH -notlike "*$scoopShims*")) {
+    $env:PATH = "$scoopShims;$env:PATH"
+}
 if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) { exit 2 }
 scoop install bat ripgrep fd fzf jq lazygit delta
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
