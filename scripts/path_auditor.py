@@ -18,6 +18,27 @@ from typing import Any, Final
 
 _WIN_EXECUTABLE_SUFFIXES: Final[frozenset[str]] = frozenset({".exe", ".bat", ".cmd", ".ps1"})
 
+# Basenames that Windows itself ships in multiple locations by design.
+# Reporting these as conflicts is pure noise.
+_WINDOWS_INTERNAL_DUPLICATES: Final[frozenset[str]] = frozenset({
+    "notepad.exe",
+    "write.exe",
+    "winver.exe",
+    "calc.exe",
+    "mspaint.exe",
+    "snippingtool.exe",
+})
+
+# WindowsApps stubs redirect to the Microsoft Store when the real app is absent.
+# When a real tool wins over a stub, that is the intended and desirable outcome.
+_WINDOWS_APPS_MARKER = "\\microsoft\\windowsapps\\"
+
+# Inno Setup places a generic uninstaller in every app's private directory.
+# These are never run from PATH; "conflicts" between them are false positives.
+def _is_inno_uninstaller(basename: str) -> bool:
+    import re
+    return bool(re.fullmatch(r"unins\d+\.exe", basename.lower()))
+
 
 def _iter_path_directories() -> list[Path]:
     raw = os.environ.get("PATH", "")
@@ -67,8 +88,18 @@ def audit_path() -> dict[str, Any]:
         unique = list(dict.fromkeys(paths))
         if len(unique) <= 1:
             continue
+
+        # Suppress known false positives
+        if base in _WINDOWS_INTERNAL_DUPLICATES:
+            continue
+        if _is_inno_uninstaller(base):
+            continue
         w = winner.get(base, unique[0])
         losers = [p for p in unique if p != w]
+        # Suppress when every losing path is a WindowsApps stub — winner is correct.
+        if all(_WINDOWS_APPS_MARKER in p.lower() for p in losers):
+            continue
+
         conflicts.append(
             {
                 "basename": base,
