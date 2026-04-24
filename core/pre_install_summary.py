@@ -248,6 +248,8 @@ def pre_install_summary_lines(ctx: InstallContext) -> list[str]:
                 "  ⚠ Free space is close to estimated usage — consider freeing up space first."
             )
 
+    extras_selected = ctx.profile_selected("extras")
+    body_lines.append(f"Extras (personal tools): {'yes' if extras_selected else 'no — opt-in, not part of default stacks'}")
     body_lines.append(f"Windows sanitation (CTT WinUtil): {'YES' if ctx.run_sanitation else 'no'}")
     if ctx.run_sanitation:
         sp = getattr(ctx, "sanitation_preset", "minimal") or "minimal"
