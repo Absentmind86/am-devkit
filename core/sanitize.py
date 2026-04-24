@@ -28,6 +28,8 @@ def _winutil_config_path(ctx: InstallContext) -> Path:
 
 def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     """Invoke Chris Titus WinUtil with our JSON preset (opt-in: ``ctx.run_sanitation``)."""
+    console.print("[bold]Layer 1 — Windows sanitization[/bold]")
+    preset_name = getattr(ctx, "sanitation_preset", "minimal")
     config_path = _winutil_config_path(ctx)
     if not config_path.is_file():
         manifest.record_tool(
@@ -48,7 +50,7 @@ def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> N
             install_method="winutil",
             notes="Sanitation not requested (pass --run-sanitation to enable).",
         )
-        console.print("  [skipped] WinUtil — use --run-sanitation to apply CTT preset")
+        console.print(f"  [skipped] WinUtil — use --run-sanitation to apply CTT preset: {preset_name}")
         return
 
     if ctx.dry_run:

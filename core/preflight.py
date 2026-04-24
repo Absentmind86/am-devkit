@@ -39,8 +39,11 @@ def run_preflight(ctx: InstallContext, manifest: Manifest, console: Console) -> 
 
     ps = f"""
 $ErrorActionPreference = 'Stop'
-# System Protection must be enabled on the system drive before Checkpoint-Computer will work.
+# Enable System Protection on the system drive if disabled.
 Enable-ComputerRestore -Drive "$env:SystemDrive\" -ErrorAction SilentlyContinue
+# Bypass the 24-hour throttle Windows imposes by default (value in minutes; 0 = always allow).
+$regPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'
+Set-ItemProperty -Path $regPath -Name SystemRestorePointCreationFrequency -Value 0 -Type DWord -ErrorAction SilentlyContinue
 Checkpoint-Computer -Description '{desc.replace("'", "''")}' -RestorePointType MODIFY_SETTINGS
 """
     console.print("  [installing] System restore point …")

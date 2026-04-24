@@ -200,6 +200,7 @@ if ((Test-Path $scoopShims) -and ($env:PATH -notlike "*$scoopShims*")) {
     $env:PATH = "$scoopShims;$env:PATH"
 }
 if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) { exit 2 }
+scoop bucket add extras 2>&1 | Out-Null
 scoop install bat ripgrep fd fzf jq lazygit delta
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 exit 0

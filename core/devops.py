@@ -60,8 +60,11 @@ def run_devops(ctx: InstallContext, manifest: Manifest, console: Console) -> Non
                 r"""
 $dir = 'C:\ProgramData\DockerDesktop'
 if (Test-Path $dir) {
-    & takeown.exe /F $dir /R /D Y 2>&1 | Out-Null
+    # /A assigns ownership to the Administrators group (not just the current user).
+    # Docker Desktop checks that the directory is owned by an elevated account.
+    & takeown.exe /F $dir /R /D Y /A 2>&1 | Out-Null
     & icacls.exe $dir /grant "BUILTIN\Administrators:(OI)(CI)F" /T /Q 2>&1 | Out-Null
+    & icacls.exe $dir /setowner "BUILTIN\Administrators" /T /Q 2>&1 | Out-Null
 }
 """,
                 timeout_s=60.0,
