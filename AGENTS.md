@@ -254,6 +254,8 @@ source. Run it before release or when winget IDs change.
 | Sanitation | CTT WinUtil, preset-level toggle in UI (Minimal / Standard radio) | We own the config, CTT owns the execution |
 | Path Auditor output | First section of HTML report, red banner on conflicts | Highest-value diagnostic, must be impossible to miss |
 | Post-install Launchpad | Profile-aware, one-click concrete outcomes only | No links pages, no "learn more" |
+| Code signing (v0.8) | No signing — document SmartScreen flows in README | `irm\|iex` has no MOTW; `git clone` has no MOTW; browser download needs `Unblock-File` |
+| Code signing (v1.0+) | Azure Trusted Signing (planned) | Cheapest per-signature path for indie projects; gets SmartScreen reputation bypass |
 
 ---
 

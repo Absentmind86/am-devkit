@@ -36,6 +36,13 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 8 — Code signing decision + SmartScreen docs:
+        Decision: no signing for v0.8 (irm|iex + git clone have no MOTW, no block);
+        Azure Trusted Signing planned for v1.0. README: "SmartScreen / execution policy
+        notes" section with Unblock-File snippet and flow-by-flow explanation.
+        RELEASE_TESTING.md: three SmartScreen test cases (irm|iex, git clone, browser
+        download + Unblock-File). AGENTS.md: two rows added to Key Design Decisions table
+        (v0.8 documented-warning path; v1.0+ Azure Trusted Signing). Roadmap line updated.
 - [x] Pass 7 — VERSION file + am-devkit.toml + winget smoke-test:
         VERSION file at repo root (plain text "0.8.0-phase4"); install_context.py
         reads via _read_version() at module load with hard-coded fallback.
@@ -78,8 +85,13 @@ Version & Config
       authoritative version in VERSION file." No delete needed; it documents future intent.
 
 Code Signing
-- [ ] Decision: vendored cert, Azure Trusted Signing, or documented SmartScreen warning
-- [ ] Implement chosen path
+- [x] Decision: documented SmartScreen warning for v0.8; Azure Trusted Signing planned for v1.0.
+      irm|iex has no MOTW (no block). git clone has no MOTW (no block). Browser-downloaded
+      .ps1 needs Unblock-File — documented in README "SmartScreen / execution policy notes"
+      section with explicit Unblock-File snippet.
+- [x] Implement chosen path: README SmartScreen section added; RELEASE_TESTING.md has three
+      SmartScreen test cases (irm|iex, git clone, browser download + unblock); AGENTS.md
+      Key Design Decisions table updated with v0.8 and v1.0+ signing decisions.
 
 
 TIER 2 — POST-RELEASE POLISH

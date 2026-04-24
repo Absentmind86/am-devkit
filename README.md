@@ -195,6 +195,21 @@ cd Absentminds-DevKit-Windows
 
 Watch [the GitHub repository](https://github.com/Absentmind86/Absentminds-DevKit-Windows) for updates.
 
+### SmartScreen / execution policy notes
+
+**`irm | iex` (the one-liner):** PowerShell pipes the script directly into memory — no file is saved, so Windows never attaches a Mark-of-the-Web zone tag. SmartScreen does not block it.
+
+**Downloaded `.ps1` (clone-then-run):** If you download the files via a browser instead of `git clone`, Windows marks them as "from the internet." PowerShell will refuse to run them until you unblock them:
+
+```powershell
+# Run once from the repo root after a browser download:
+Get-ChildItem -Recurse -Filter *.ps1 | Unblock-File
+```
+
+`git clone` does not attach a zone tag, so cloning from the command line (as shown above) does not require this step.
+
+**Scripts are not code-signed in v0.8.** The `.ps1` files can be read in full at [github.com/Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows) before you run them. Code signing via Azure Trusted Signing is planned for v1.0.
+
 ---
 
 ## Known caveats
@@ -220,7 +235,7 @@ Watch [the GitHub repository](https://github.com/Absentmind86/Absentminds-DevKit
 - **Phase 1** ✅ — Proof of concept: system scan, GPU detection, PowerShell bootstrap
 - **Phase 2** ✅ — Full layer stack (CLI), CTT integration, manifest + HTML report
 - **Phase 3** ✅ — Flet GUI, catalog exclusions, dotfile / vault / restore wiring
-- **Phase 4** 🔄 — Release: VM testing ([docs/RELEASE_TESTING.md](docs/RELEASE_TESTING.md)), signed installer TBD, docs, launch
+- **Phase 4** 🔄 — Release: VM testing ([docs/RELEASE_TESTING.md](docs/RELEASE_TESTING.md)), SmartScreen docs, distribution (Azure Trusted Signing planned for v1.0), launch
 
 ---
 
