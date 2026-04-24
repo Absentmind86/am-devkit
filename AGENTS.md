@@ -67,8 +67,14 @@ absentmind-devkit/
 ├── README.md
 ├── CHANGELOG.md
 ├── LICENSE                     ← MIT
-├── am-devkit.toml              ← User-facing config stub (intent TBD — do not auto-generate values)
+├── VERSION                     ← Single-source version string; read by install_context._read_version()
+├── am-devkit.toml              ← User-facing config stub (NOT read by installer — future intent only)
+├── pyproject.toml              ← pytest config (testpaths, -v --tb=short) + ruff lint config
 ├── requirements.txt            ← Python deps: rich, flet==0.25.2
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml              ← CI: windows-latest, Python 3.11/3.12/3.13, py_compile + ruff + pytest
 │
 ├── bootstrap/
 │   ├── install.ps1             ← Primary entry point. PowerShell only. Layer 0 / GUI / FullInstall.
@@ -123,7 +129,15 @@ absentmind-devkit/
 │   ├── restore-devkit.ps1          ← Restore script template
 │   ├── restore-winget-from-manifest.ps1  ← Replays winget installs from devkit-manifest.json
 │   ├── scan-all-tools.py           ← Standalone tool presence scanner
+│   ├── smoke-test-winget-ids.py    ← Validates every WINGET_CATALOG ID via winget show --exact
 │   └── verify-install.py           ← Post-install verification against catalog
+│
+├── tests/
+│   ├── conftest.py                 ← Adds repo root to sys.path for all tests
+│   ├── test_gpu_detect.py          ← 36 tests: vendor detection, CUDA parse, wheel tag selection
+│   ├── test_install_catalog.py     ← 20 tests: applies_to, layer queries, catalog integrity
+│   ├── test_path_auditor.py        ← 12 tests: conflict detection, false-positive suppression
+│   └── test_winutil_presets.py     ← 22 tests: parse, ordering, fallback, mocked fetch/network
 │
 ├── templates/
 │   ├── dotfiles/

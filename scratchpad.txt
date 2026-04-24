@@ -36,6 +36,10 @@ COMPLETED
         README "Known caveats" section, AGENTS.md "System Profile" + "WSL Reboot
         Flow" sections, docs/PROJECT.md Layer 0 + Layer 6 updates reflecting
         schema 1.1 and the WSL reboot flow.
+- [x] Pass 11 — AGENTS.md file tree sync:
+        Added VERSION, pyproject.toml, .github/workflows/ci.yml,
+        scripts/smoke-test-winget-ids.py, tests/ directory (conftest.py +
+        4 test modules). am-devkit.toml tree comment corrected.
 - [x] Pass 10 — README accuracy + docs drift fixes:
         README Profile table rewritten row-by-row to match actual catalog (removed
         HuggingFace, Open WebUI, Playwright, Visual Studio Community, DirectX, MSVC,
@@ -176,7 +180,10 @@ OTHER DRIFT ITEMS VERIFIED:
 - Sanitation claim: says "category-level" but is "preset-level" RadioGroup (winutil_presets.py + gui.py)
 - Dotfiles: README says "VS Code settings" but config/vscode/settings.json is empty ({}) and never copied
 - Roadmap: Phase 1 marked 🔄 but should be ✅ (all exit criteria met, CHANGELOG says 0.8.0-phase4)
-- AGENTS.md tree: missing ~10 files (launchpad.py, restore_bundle.py, winutil_pin.py, winutil_presets.py, fresh.ps1, scripts/*.py, templates/obsidian-vault/, CHANGELOG.md, RELEASE_TESTING.md, THIRD_PARTY_NOTICES.md)
+- [x] AGENTS.md tree: was missing ~10 files — resolved across passes. Pass 11 added the
+      remaining gaps: VERSION, pyproject.toml, .github/workflows/ci.yml,
+      scripts/smoke-test-winget-ids.py, tests/ directory (5 files). am-devkit.toml
+      comment updated from "intent TBD" to "NOT read by installer — future intent only".
 
 
 GROK AUDIT SUPPLEMENT (2026-04-24)
