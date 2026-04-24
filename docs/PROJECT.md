@@ -93,7 +93,8 @@ AM-DevKit is a standalone product under the Absentmind brand — not under AM St
        │
        ▼
 [CORE — Always Installs]
-  Bloat removal, Git, Terminal, VS Code, Python, Scoop, Nerd Fonts, 7-Zip
+  Git + Git LFS, Python, Scoop, GitHub CLI, Windows Terminal, PowerShell 7,
+  VS Code, Cursor, Oh My Posh, Tailscale, uv, 7-Zip + Scoop CLI suite
        │
        ▼
 [Layer 1: Windows Sanitation]
@@ -248,20 +249,23 @@ Runs silently before anything else. Generates a `system-profile.json` used by al
 
 The litmus test for Core: *if you'd have to explain what it is to a developer, it doesn't belong here.*
 
-| Tool | Why Core |
-|---|---|
-| **Bloat Removal** (CTT WinUtil) | The whole premise |
-| **Git + Git Bash + GitHub CLI + Git LFS** | Universal. No developer doesn't need this. |
-| **Windows Terminal** | The shell you'll live in |
-| **PowerShell 7** | Replaces the ancient built-in. Required for bootstrap itself |
-| **VS Code** | Universal editor baseline |
-| **Scoop** | User-scoped package manager. Required for many Layer 2+ tools |
-| **Nerd Fonts** | Required for Oh My Posh. Without it the prompt looks broken |
-| **Python 3 (latest stable)** | Near-universal dependency. Moves here from Layer 4. |
-| **7-Zip** | Everyone needs it eventually |
-| **Oh My Posh** | Practical prompt theming, not just cosmetic |
-| **System Restore Point** | Pre-flight safety net |
-| **Path Auditor** | Runs post-install, flags conflicts |
+| Tool | Why Core | Notes |
+|---|---|---|
+| **Git + GitHub CLI + Git LFS** | Universal. No developer doesn't need this. | Git Bash not included |
+| **Windows Terminal** | The shell you'll live in | |
+| **PowerShell 7** | Replaces the ancient built-in. Required for bootstrap itself | |
+| **VS Code + Cursor** | Universal editor baseline | Excludable via `--exclude-catalog-tool` |
+| **Scoop** | User-scoped package manager. Required for many Layer 2+ tools | |
+| **Python 3 (latest stable)** | Near-universal dependency | |
+| **uv** | Fast Python package manager | |
+| **7-Zip** | Everyone needs it eventually | |
+| **Oh My Posh** | Practical prompt theming | |
+| **Tailscale** | Zero-config mesh VPN | |
+| **System Restore Point** | Pre-flight safety net | Orchestration step, not an installed package |
+| **Path Auditor** | Runs post-install, flags conflicts | Orchestration step, not an installed package |
+
+> **Bloat removal (CTT WinUtil)** is opt-in, not Core. It runs as Layer 1 only when sanitation is enabled.
+> **Nerd Fonts** is not currently automated — Oh My Posh works without them (prompt degrades gracefully).
 
 *Python version management (pyenv-win), package tooling (uv, pipx), and virtual environments remain in Layer 4 — Core installs the runtime, Layer 4 installs the ecosystem.*
 
@@ -408,8 +412,8 @@ All aliases pre-configured in seeded `.bashrc` / PowerShell profile (e.g. `ls` �
 - [ ] GitHub Copilot (only if user has license — not forced)
 
 ### VS Code Settings
-- Seed a base `settings.json` with sane defaults (auto-save, format on save, terminal = Git Bash)
-- Configurable from `am-devkit.toml` before install
+- `config/vscode/settings.json` is currently a stub (`{}`) — populate before this is implemented
+- Extension seeding via `config/vscode/extensions.json` is implemented
 
 ---
 
@@ -470,13 +474,9 @@ All aliases pre-configured in seeded `.bashrc` / PowerShell profile (e.g. `ls` �
         Query CUDA version from nvidia-smi
                   │
                   ▼
-        Install PyTorch matching CUDA version
-        (from download.pytorch.org/whl/cuXXX)
-                  │
-                  ▼
-        Install CUDA Toolkit if missing
-        Install cuDNN
-        Install nvidia-ml-py
+        Select correct PyTorch wheel index URL
+        for detected CUDA version automatically
+        (pip install torch from download.pytorch.org/whl/cuXXX)
 
 ┌─────────────────────────────────────────┐
 │         NVIDIA not found.               │
@@ -485,10 +485,8 @@ All aliases pre-configured in seeded `.bashrc` / PowerShell profile (e.g. `ls` �
 └─────────────────┬───────────────────────┘
                   │ YES
                   ▼
-        Warn: ROCm Windows support is limited
-        Offer: CPU PyTorch fallback OR
-               ROCm experimental install
-               (user confirms)
+        Install PyTorch via DirectML
+        (torch-directml — stable Windows AMD path)
 
 ┌─────────────────────────────────────────┐
 │   No discrete GPU / Intel integrated    │
@@ -543,10 +541,10 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ### Containers & Orchestration
 - [ ] Docker Desktop (with WSL2 backend configured)
-- [ ] **Docker GPU passthrough configured** — NVIDIA Container Toolkit config seeded so containers can access GPU. Critical for AI/ML profiles. Without this, Docker and PyTorch GPU work are siloed.
-- [ ] WSL2 enabled (Windows feature)
-- [ ] Ubuntu 22.04 LTS as default WSL distro
-- [ ] **WSL Seeding Toggle** — when enabled, runs a secondary shell script inside the Ubuntu distro to install `build-essential`, `procps`, git, Python, and your dotfiles. Makes the WSL environment feel identical to Windows side. SSH keys are symlinked (shared, not duplicated). Off by default.
+- [ ] ~~Docker GPU passthrough configured~~ — **not implemented**; future work
+- [ ] WSL2 enabled (Windows feature; may require reboot — user is warned, no auto-resume)
+- [ ] WSL distro install (`wsl --install -d <distro>`) — opt-in via `--enable-wsl`/`--wsl-distro`
+- [ ] ~~WSL Seeding Toggle~~ — **not implemented**; future work
 - [ ] `kubectl`
 - [ ] `helm`
 - [ ] `k9s` — TUI Kubernetes cluster manager (optional — cleaner than raw kubectl)
@@ -919,17 +917,17 @@ absentmind-devkit/
 - [x] Name locked: **Absentmind's DevKit**
 - [x] Create GitHub repo — [Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
 
-### Phase 1 — Proof of Concept
-- [ ] Layer 0: System scan script (Python + WMI)
-- [ ] Layer 5: GPU detection + correct PyTorch install (the core differentiator — validate this works first)
-- [ ] Bootstrap PowerShell → Python handoff
-- [ ] Basic profile selection (CLI, no GUI yet)
+### Phase 1 — Proof of Concept ✅
+- [x] Layer 0: System scan script (Python + WMI)
+- [x] Layer 5: GPU detection + correct PyTorch install (the core differentiator)
+- [x] Bootstrap PowerShell → Python handoff
+- [x] Basic profile selection (CLI, no GUI yet)
 
-### Phase 2 — Core Installer
-- [ ] All layers functional (CLI mode)
-- [ ] CTT WinUtil integration with AM config
-- [ ] Manifest generation
-- [ ] Post-install report (HTML)
+### Phase 2 — Core Installer ✅
+- [x] All layers functional (CLI mode)
+- [x] CTT WinUtil integration with AM config
+- [x] Manifest generation
+- [x] Post-install report (HTML)
 
 ### Phase 3 — Polish
 - [x] GUI profile selector (Flet — Python/Flutter based)
@@ -953,7 +951,7 @@ absentmind-devkit/
 | Question | Options | Status |
 |---|---|---|
 | GUI framework for profile selector | Tauri, PowerShell dialog, Python rich TUI, Flet | **Leaning Flet** — async-native, Python codebase stays unified, modern Flutter-based look without JS/CSS. Rich TUI for during-install output, Flet for the profile selector UI. |
-| ROCm Windows — include or just warn? | Include experimental / CPU fallback only | Open |
+| ROCm Windows — include or just warn? | **Resolved: DirectML** (`torch-directml`) — stable Windows AMD path, no ROCm | Closed |
 | Signed executable? | Yes (code signing cert) / Trust-on-first-run PS1 | Open |
 | Dotfile storage | Local only / Optional GitHub Gist sync | Open |
 | Winget vs Chocolatey fallback strategy | Winget primary, Choco for gaps | Tentative |
@@ -986,7 +984,7 @@ absentmind-devkit/
 - Content Creator profile dissolved — OBS/ShareX/Discord live in Extras where they belong ✅
 - Web Dev and Full-Stack profiles are similar — worth reviewing for possible merge in v0.4
 - The "if you'd have to explain what it is, it's not Core" rule should be documented in CONTRIBUTING.md for future contributors
-- Sanitation toggle is category-level, not all-or-nothing — OneDrive in particular should always be a separate opt-in, some users genuinely use it ✅
+- Sanitation toggle is preset-level (Minimal / Standard radio), not all-or-nothing ✅
 - Pre-Install Summary time/disk estimates depend on Layer 0 connection speed detection being accurate — test this early in Phase 1
 - Post-Install Launchpad: "one click = one concrete outcome" is the rule. Do not let this become a links page.
 - GPU verification script for Launchpad: raw `torch.cuda.is_available()` returning True/False is not user-friendly — wrap it in a readable output ("✅ CUDA available — your GPU is ready for AI workloads")

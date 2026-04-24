@@ -67,68 +67,80 @@ absentmind-devkit/
 ├── README.md
 ├── CHANGELOG.md
 ├── LICENSE                     ← MIT
-├── am-devkit.toml              ← User-facing config (do not auto-generate values here)
+├── am-devkit.toml              ← User-facing config stub (intent TBD — do not auto-generate values)
+├── requirements.txt            ← Python deps: rich, flet==0.25.2
 │
 ├── bootstrap/
-│   └── install.ps1             ← Entry point. PowerShell only. Installs Python, hands off.
+│   ├── install.ps1             ← Primary entry point. PowerShell only. Layer 0 / GUI / FullInstall.
+│   └── fresh.ps1               ← Fresh-machine one-liner: installs git if missing, clones, opens GUI.
 │
 ├── core/
 │   ├── installer.py            ← CLI orchestrator (python -m core.installer)
-│   ├── gui.py                  ← Phase 3: Flet launcher (python -m core.gui)
+│   ├── gui.py                  ← Flet launcher (python -m core.gui)
 │   ├── install_context.py      ← Shared InstallContext + profile merge helpers
 │   ├── manifest.py             ← devkit-manifest.json incremental writer
 │   ├── winget_util.py          ← Winget installs with skip-if-present logic
 │   ├── pwsh_util.py            ← Scoop, OpenSSH client, rustup-init, optional WSL DISM
 │   ├── pyenv_scoop.py          ← pyenv-win via Scoop (no winget package)
-│   ├── install_catalog.py      ← PROJECT.md-aligned winget matrix (Phase 2B)
+│   ├── install_catalog.py      ← Winget catalog matrix with profile gates
 │   ├── catalog_install.py      ← Apply catalog rows per layer (profile gates)
 │   ├── pre_install_summary.py  ← CLI pre-install summary + optional confirm (after Layer 0)
 │   ├── preflight.py            ← Restore point + Absentmind Mode toggle
 │   ├── system_scan.py          ← Layer 0: hardware detection → system-profile.json
-│   ├── sanitize.py             ← Layer 1: invokes CTT WinUtil with AM config
-│   ├── infrastructure.py       ← Layer 2: Git, Terminal, SSH, Tailscale
+│   ├── sanitize.py             ← Layer 1: invokes CTT WinUtil with preset (Minimal/Standard)
+│   ├── infrastructure.py       ← Layer 2: bootstrap tools (Git, Python, Scoop) + core infra
 │   ├── editors.py              ← Layer 3: VS Code, Cursor, extensions
 │   ├── languages.py            ← Layer 4: Python ecosystem, Node, Rust
-│   ├── ml_stack.py             ← Layer 5: GPU branch logic + PyTorch
-│   ├── devops.py               ← Layer 6: Docker, WSL2, WSL seeding, CLIs
-│   ├── utilities.py            ← Layer 7: dev tools, security, monitoring
+│   ├── ml_stack.py             ← Layer 5: GPU detection + PyTorch (opt-in --install-ml-wheels)
+│   ├── devops.py               ← Layer 6: Docker, WSL2, cloud CLIs
+│   ├── utilities.py            ← Layer 7: catalog-driven dev tools
 │   ├── extras.py               ← Extras profile: optional personal winget stack
 │   ├── finalize.py             ← Layer 8: manifest, path auditor, HTML report, dotfiles
-│   └── sandbox.py              ← Layer 8.5: Disposable Workspace config
+│   ├── sandbox.py              ← Layer 8.5: Disposable Workspace config
+│   ├── launchpad.py            ← Post-install launchpad: .cmd scripts + HTML section
+│   ├── restore_bundle.py       ← Restore point / restore bundle helpers
+│   ├── winutil_pin.py          ← SHA256-pinned WinUtil release with opt-in unpinned mode
+│   └── winutil_presets.py      ← WinUtil preset registry (Minimal/Standard + descriptions)
 │
 ├── config/
 │   ├── am-devkit-winutil.json        ← WinUtil tweaks: conservative (minimal)
 │   ├── am-devkit-winutil-standard.json  ← WinUtil tweaks: CTT preset.json Standard set
 │   ├── profiles/
-│   │   ├── ai-ml.toml
-│   │   ├── web-fullstack.toml
-│   │   ├── systems.toml
-│   │   ├── game-dev.toml
-│   │   ├── hardware-robotics.toml
-│   │   ├── absentmind-mode.toml
-│   │   └── extras.toml
+│   │   ├── ai-ml.toml              ← Stub (profile gating lives in install_catalog.py)
+│   │   ├── web-fullstack.toml      ← Stub (profile gating lives in install_catalog.py)
+│   │   ├── systems.toml            ← Stub (profile gating lives in install_catalog.py)
+│   │   ├── game-dev.toml           ← Stub (profile gating lives in install_catalog.py)
+│   │   ├── hardware-robotics.toml  ← Stub (profile gating lives in install_catalog.py)
+│   │   ├── absentmind-mode.toml    ← Stub (profile gating lives in install_catalog.py)
+│   │   └── extras.toml             ← Extras catalog metadata
 │   └── vscode/
-│       ├── settings.json
-│       └── extensions.json
+│       ├── settings.json           ← Stub ({}) — not currently seeded; populate or remove
+│       └── extensions.json         ← VS Code + Cursor extension recommendations
 │
 ├── scripts/
-│   ├── gpu_detect.py           ← Standalone. Must run independently of full bootstrap.
-│   ├── path_auditor.py         ← PATH conflict detection + fingerprinting
-│   └── restore-devkit.ps1
+│   ├── gpu_detect.py               ← Standalone GPU detection. Must run independently.
+│   ├── path_auditor.py             ← PATH conflict detection + fingerprinting
+│   ├── restore-devkit.ps1          ← Restore script template
+│   ├── restore-winget-from-manifest.ps1  ← Replays winget installs from devkit-manifest.json
+│   ├── scan-all-tools.py           ← Standalone tool presence scanner
+│   └── verify-install.py           ← Post-install verification against catalog
 │
 ├── templates/
 │   ├── dotfiles/
 │   │   ├── .gitconfig
 │   │   ├── .bashrc
 │   │   └── powershell-profile.ps1
+│   ├── obsidian-vault/             ← Starter vault template (seeded when Extras + Obsidian)
 │   └── sandbox/
 │       ├── sandbox-config.wsb
 │       └── devcontainer.json
 │
 └── docs/
-    ├── PROJECT.md              ← Master document. Read this.
-    ├── ARCHITECTURE.md
-    └── CONTRIBUTING.md
+    ├── PROJECT.md                  ← Master document. Read this.
+    ├── ARCHITECTURE.md             ← Short pointer to PROJECT.md
+    ├── CONTRIBUTING.md
+    ├── RELEASE_TESTING.md          ← VM smoke + regression checklist for Phase 4
+    └── THIRD_PARTY_NOTICES.md      ← Attribution for WinUtil, Winget, pip deps
 ```
 
 ---
@@ -192,24 +204,24 @@ absentmind-devkit/
 | Python in Core | Yes — always installs | Near-universal dependency |
 | Profile system | Multi-select, additive | Users often need more than one stack |
 | Absentmind Mode | All *core* profiles (no Extras), no prompts | Extras stay opt-in (`config/profiles/extras.toml`) |
-| Sanitation | CTT WinUtil, category-level toggle in UI | We own the config, CTT owns the execution |
+| Sanitation | CTT WinUtil, preset-level toggle in UI (Minimal / Standard radio) | We own the config, CTT owns the execution |
 | Path Auditor output | First section of HTML report, red banner on conflicts | Highest-value diagnostic, must be impossible to miss |
 | Post-install Launchpad | Profile-aware, one-click concrete outcomes only | No links pages, no "learn more" |
 
 ---
 
-## What "Done" Looks Like for Phase 2
+## What "Done" Looked Like for Phase 2 ✅
 
-- [ ] `python -m core.installer --dry-run --profile systems` completes and writes manifest + HTML + PATH fingerprint
-- [ ] `python -m core.installer` (non-dry) runs layers without a single uncaught exception aborting the run
-- [ ] `--run-sanitation` invokes WinUtil with the AM JSON config (validated on a throwaway VM first)
-- [ ] `bootstrap/install.ps1 -FullInstall` runs the Phase 2 installer from repo root
+- [x] `python -m core.installer --dry-run --profile systems` completes and writes manifest + HTML + PATH fingerprint
+- [x] `python -m core.installer` (non-dry) runs layers without a single uncaught exception aborting the run
+- [x] `--run-sanitation` invokes WinUtil with the AM JSON config (validated on a throwaway VM first)
+- [x] `bootstrap/install.ps1 -FullInstall` runs the Phase 2 installer from repo root
 
-### Phase 1 exit criteria (baseline)
+### Phase 1 exit criteria (baseline) ✅
 
-- [ ] `system_scan.py` returns a valid `system-profile.json` on a real Windows machine
-- [ ] `gpu_detect.py` correctly identifies NVIDIA/AMD/CPU-only and selects the right PyTorch index URL
-- [ ] `install.ps1` bootstraps Python and hands off to Python without errors on a clean machine
+- [x] `system_scan.py` returns a valid `system-profile.json` on a real Windows machine
+- [x] `gpu_detect.py` correctly identifies NVIDIA/AMD/CPU-only and selects the right PyTorch index URL
+- [x] `install.ps1` bootstraps Python and hands off to Python without errors on a clean machine
 
 ---
 

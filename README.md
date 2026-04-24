@@ -98,20 +98,17 @@ This is AM-DevKit's most significant differentiator. No other Windows installer 
 ```
 NVIDIA detected?
   → Query CUDA version from nvidia-smi
-  → Install PyTorch matching that exact CUDA version
-  → Install CUDA Toolkit + cuDNN if missing
-  → Configure Docker GPU passthrough
+  → Select the correct PyTorch wheel index URL for that CUDA version automatically
 
 AMD detected?
-  → Warn about ROCm Windows limitations
-  → Offer CPU fallback or experimental ROCm install
+  → Install PyTorch via DirectML (torch-directml) — the stable Windows GPU path
 
-No discrete GPU?
+No discrete GPU / VM?
   → Install CPU-only PyTorch
   → No wasted disk space on CUDA packages
 ```
 
-You never touch `--index-url`. You never Google "which PyTorch version for CUDA 12.1." It just works.
+PyTorch installation is opt-in (`--install-ml-wheels` / GUI toggle). You never touch `--index-url`. You never Google "which PyTorch version for CUDA 12.1." The right index URL is selected automatically — you just confirm and walk away.
 
 ---
 
@@ -120,17 +117,27 @@ You never touch `--index-url`. You never Google "which PyTorch version for CUDA 
 - **`devkit-manifest.json`** — every tool installed, version, timestamp, method
 - **`restore-devkit.ps1`** — run this on any future machine to reproduce this exact environment
 - **`post-install-report.html`** — opens in your browser. Path Auditor results first (red banner if conflicts, green if clean). Full install summary. Post-install Launchpad with one-click next steps.
-- **Seeded dotfiles** — `.gitconfig` with sane defaults, PowerShell profile with modern CLI aliases, VS Code settings
+- **Seeded dotfiles** — `.gitconfig` with sane defaults, `.bashrc`, PowerShell profile with modern CLI aliases
 
 ---
 
-## Core Stack (Always Installs)
+## Core Stack
 
-Every run, regardless of profile selection:
+**Bootstrap foundation** (always installs, required for everything else to function):
 
-`Git` · `GitHub CLI` · `Windows Terminal` · `PowerShell 7` · `VS Code` · `Python 3` · `Scoop` · `Nerd Fonts` · `Oh My Posh` · `7-Zip`
+`Git` · `Git LFS` · `Python 3` · `Scoop`
 
-Plus a full modern CLI suite via Scoop: `bat` · `eza` · `ripgrep` · `fd` · `fzf` · `zoxide` · `lazygit` · `btop` · `delta` · and more.
+**Always installs** (every run, excludable individually):
+
+`GitHub CLI` · `Windows Terminal` · `PowerShell 7` · `VS Code` · `Cursor` · `Oh My Posh` · `Tailscale` · `uv` · `7-Zip`
+
+**Scoop CLI suite** (always installs via Scoop):
+
+`bat` · `ripgrep` · `fd` · `fzf` · `jq` · `lazygit` · `delta`
+
+**Profile-dependent** (only with relevant profile selected):
+
+`Rust` (systems / game-dev / hardware-robotics / ai-ml) · `Node via NVM` (web-fullstack)
 
 ---
 
@@ -138,14 +145,14 @@ Plus a full modern CLI suite via Scoop: `bat` · `eza` · `ripgrep` · `fd` · `
 
 Not dev stack. Presented separately after profile selection.
 
-`PowerToys` · `Obsidian` · `OBS Studio` · `ShareX` · `HWiNFO64` · `Everything` · `VLC` · `Bitwarden` · `Discord` · `AutoHotkey` · `ffmpeg`
+`PowerToys` · `Obsidian` · `OBS Studio` · `ShareX` · `HWiNFO64` · `WizTree` · `VLC` · `Bitwarden` · `KeePassXC` · `Fork` · `Discord` · `AutoHotkey` · `ffmpeg`
 
 ---
 
 ## Safety First
 
 - **System Restore Point** is forced before anything touches your machine. No opt-out.
-- **Sanitation is category-level toggleable** — you see exactly what CTT WinUtil will do, organized by category, before it runs. Everything can be turned off. *(This runs Chris Titus Tech's WinUtil with our curated settings. Nothing in sanitation is required for AM-DevKit to work.)*
+- **Sanitation is preset-level toggleable** — choose between Minimal (light privacy cleanup) or Standard (full privacy + performance tuning) before anything runs. The preset can be disabled entirely. *(This runs Chris Titus Tech's WinUtil with our curated preset. Nothing in sanitation is required for AM-DevKit to work.)*
 - **Pre-Install Summary** shows tool count, estimated time, and estimated disk usage before you commit.
 - **Layer 8.5: Disposable Workspace** (opt-in) — configure Windows Sandbox or a Dev Container for testing experimental code without touching your host OS.
 
@@ -193,7 +200,7 @@ Watch [the GitHub repository](https://github.com/Absentmind86/Absentminds-DevKit
 ## Roadmap
 
 - **Phase 0** ✅ — Vision, architecture, full specification
-- **Phase 1** 🔄 — Proof of concept: system scan, GPU detection, PowerShell bootstrap
+- **Phase 1** ✅ — Proof of concept: system scan, GPU detection, PowerShell bootstrap
 - **Phase 2** ✅ — Full layer stack (CLI), CTT integration, manifest + HTML report
 - **Phase 3** ✅ — Flet GUI, catalog exclusions, dotfile / vault / restore wiring
 - **Phase 4** 🔄 — Release: VM testing ([docs/RELEASE_TESTING.md](docs/RELEASE_TESTING.md)), signed installer TBD, docs, launch
