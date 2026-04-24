@@ -1,4 +1,10 @@
-"""Layer 4: Python, Node via NVM, runtimes, build tools (Phase 2B — catalog + PROJECT.md)."""
+"""Layer 4: Python, runtimes, build tools.
+
+Bootstrap: Python 3 is installed directly (must exist before catalog).
+Catalog-driven: uv, nvm-windows (web), golang, temurin, dotnet, cmake, ninja,
+                unity-hub, godot (all profile-gated in install_catalog.py).
+Rustup is non-catalog (rustup-init.exe) — profile-gated via _wants_rust().
+"""
 
 from __future__ import annotations
 
@@ -48,22 +54,7 @@ def run_languages(ctx: InstallContext, manifest: Manifest, console: Console) -> 
             detect=lambda: False,
         )
 
-    ensure_winget_package(
-        ctx,
-        manifest,
-        console,
-        tool="uv",
-        layer="languages",
-        winget_id="astral-sh.uv",
-        detect=lambda: which("uv.exe") is not None,
-    )
-
     ensure_pyenv_scoop(ctx, manifest, console)
-
-    if ctx.profile_selected("web-fullstack"):
-        console.print("  [info] Node — use NVM from catalog; after install run: nvm install lts")
-    else:
-        console.print("  [skipped] NVM / Node — web-fullstack not selected")
 
     if _wants_rust(ctx):
         ensure_rustup_default(ctx, manifest, console)

@@ -53,6 +53,14 @@ def _d(exe: str) -> Callable[[], bool]:
 
 # Order within a layer is install order (dependencies first where possible).
 WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
+    # --- Layer 2: infrastructure (non-bootstrap, excludable via --exclude-catalog-tool) ---
+    # Git, Git LFS, Scoop, and OpenSSH are NOT here — they are bootstrap prerequisites
+    # and must be installed before the catalog system can run (see infrastructure.py).
+    WingetCatalogEntry("github-cli",       "GitHub.cli",                  "infrastructure", None, "gh.exe"),
+    WingetCatalogEntry("windows-terminal", "Microsoft.WindowsTerminal",   "infrastructure", None, "wt.exe"),
+    WingetCatalogEntry("powershell-7",     "Microsoft.PowerShell",        "infrastructure", None, "pwsh.exe"),
+    WingetCatalogEntry("oh-my-posh",       "JanDeDobbeleer.OhMyPosh",     "infrastructure", None, "oh-my-posh.exe"),
+    WingetCatalogEntry("tailscale",        "Tailscale.Tailscale",         "infrastructure", None, "tailscale.exe"),
     # --- Layer 3: editors (common — optional via --exclude-catalog-tool) ---
     WingetCatalogEntry("vscode",  "Microsoft.VisualStudioCode", "editors", None, "code.cmd"),
     WingetCatalogEntry("cursor",  "Anysphere.Cursor",           "editors", None, "cursor.exe"),
@@ -82,8 +90,9 @@ WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
     WingetCatalogEntry("google-cloud-sdk", "Google.CloudSDK", "devops", P_WEB_AI_SYS, "gcloud.cmd"),
     WingetCatalogEntry("azure-cli", "Microsoft.AzureCLI", "devops", P_WEB_AI_SYS, "az.cmd"),
     WingetCatalogEntry("podman-desktop", "RedHat.Podman-Desktop", "devops", P_SYS_AI_WEB, "podman.exe"),
-    # --- Layer 4: languages & build (profile-gated) ---
-    WingetCatalogEntry("nvm-windows", "CoreyButler.NVMforWindows", "languages", P_WEB, "nvm.exe"),
+    # --- Layer 4: languages & build ---
+    WingetCatalogEntry("uv",          "astral-sh.uv",               "languages", None,  "uv.exe"),
+    WingetCatalogEntry("nvm-windows", "CoreyButler.NVMforWindows",  "languages", P_WEB, "nvm.exe"),
     WingetCatalogEntry("golang", "GoLang.Go", "languages", P_WEB_AI_SYS, "go.exe"),
     WingetCatalogEntry("temurin-jdk21", "EclipseAdoptium.Temurin.21.JDK", "languages", P_WEB_SYS_GAME, "java.exe"),
     WingetCatalogEntry("dotnet-sdk-8", "Microsoft.DotNet.SDK.8", "languages", P_WEB_SYS_GAME, "dotnet.exe"),
@@ -133,6 +142,14 @@ def count_winget_actions(
 # order-of-magnitude numbers — fine for a ballpark summary, not disk planning.
 # Missing entries default to 100 MB via ``estimate_tool_disk_mb``.
 TOOL_DISK_MB: Final[dict[str, int]] = {
+    # Layer 2 infrastructure
+    "github-cli":       60,
+    "windows-terminal": 150,
+    "powershell-7":     220,
+    "oh-my-posh":       30,
+    "tailscale":        80,
+    # Layer 4 languages (always-on)
+    "uv":               20,
     # Layer 7 utilities
     "7zip": 10,
     "notepadplusplus": 30,

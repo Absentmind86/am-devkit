@@ -95,6 +95,14 @@ FOUNDATION_ALWAYS_COUNT: int = 14
 
 # Hover tooltips shown on every catalog tool checkbox and feature toggle.
 TOOL_TOOLTIPS: dict[str, str] = {
+    # Layer 2 infrastructure (common — excludable) -------------------------
+    "github-cli":        "GitHub CLI (gh) — manage repos, PRs, issues, and Actions from the terminal. Pairs with Git for a complete GitHub workflow.",
+    "windows-terminal":  "Windows Terminal — modern multi-tab terminal with GPU-accelerated text rendering, profiles, and Unicode support.",
+    "powershell-7":      "PowerShell 7 — cross-platform shell replacing the built-in Windows PowerShell 5.1. Required for modern scripting and AM-DevKit's own tools.",
+    "oh-my-posh":        "Oh My Posh — prompt theme engine. Adds git status, active venv, execution time, and more to your PowerShell/bash prompt.",
+    "tailscale":         "Tailscale — zero-config mesh VPN. Securely connects your machines across networks without port-forwarding or static IPs.",
+    # Layer 4 languages (common — excludable) ------------------------------
+    "uv":                "uv — extremely fast Python package and project manager (Rust-backed). Replaces pip/pip-tools/venv for day-to-day Python work.",
     # Common tools (profiles=None) ----------------------------------------
     "vscode":            "Visual Studio Code — lightweight, extensible editor by Microsoft. Extensions installed from config/vscode/extensions.json.",
     "cursor":            "Cursor — AI-native code editor built on VS Code with Claude / Copilot integration baked in.",
