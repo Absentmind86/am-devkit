@@ -29,17 +29,6 @@ No tool currently does this completely. Most installers either handle apps OR th
 
 ## Brand Context
 
-```
-Absentmind (Brand Umbrella)
-├── Absentmind DevKit        ← This project (AM-DevKit)
-├── AM Studio                  ← Separate product umbrella
-│   └── AM Pixel               ← SNES-era AI sprite generator
-├── Kyle's Quest               ← Text RPG
-├── GaussBow Mk.1              ← Gauss cannon project
-├── Nerf AI Turret             ← CV/robotics starter
-└── RV EZ FIX LLC              ← Active repair business
-```
-
 AM-DevKit is a standalone product under the Absentmind brand — not under AM Studio. The "AM-DevKit" shorthand is expected to emerge organically. The full name **Absentmind DevKit** is the canonical name and should be used in all official contexts to build brand recognition.
 
 ---
