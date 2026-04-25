@@ -183,7 +183,15 @@ Administrator privileges required for sanitation and system-level installs.
 irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1 | iex
 ```
 
-This is the recommended entry point for a brand-new Windows install. It clones the repo to `%USERPROFILE%\Absentminds-DevKit-Windows` and launches the Phase 3 GUI. Re-running it updates the local clone and re-opens the GUI.
+This is the quickest entry point. It clones the repo to `%USERPROFILE%\Absentminds-DevKit-Windows` and launches the Phase 3 GUI. Re-running it updates the local clone and re-opens the GUI.
+
+**Verified install** (downloads to file, shows SHA256, asks before running — recommended if you want proof of integrity):
+
+```powershell
+irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/Verify-Bootstrap.ps1 | iex
+```
+
+This fetches `fresh.ps1` to a temp file, computes its SHA256, compares it against the published hash in [`bootstrap/CHECKSUMS.sha256`](bootstrap/CHECKSUMS.sha256), and only proceeds with your explicit `Y`. The checksum file is automatically updated by CI on every push that changes `fresh.ps1`.
 
 **Clone then run** (recommended if you want to read everything first):
 
@@ -199,7 +207,7 @@ Watch [the GitHub repository](https://github.com/Absentmind86/Absentminds-DevKit
 
 ### SmartScreen / execution policy notes
 
-**`irm | iex` (the one-liner):** PowerShell pipes the script directly into memory — no file is saved, so Windows never attaches a Mark-of-the-Web zone tag. SmartScreen does not block it.
+**`irm | iex` (the one-liner):** PowerShell pipes the script directly into memory — no file is saved, so Windows never attaches a Mark-of-the-Web zone tag. SmartScreen does not block it. HTTPS provides transport integrity (TLS). If you additionally want content integrity (SHA256 verification), use the **Verified install** command above.
 
 **Downloaded `.ps1` (clone-then-run):** If you download the files via a browser instead of `git clone`, Windows marks them as "from the internet." PowerShell will refuse to run them until you unblock them:
 
