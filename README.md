@@ -89,7 +89,7 @@ Select one or more. They stack. Each has an info button that shows exactly what 
 | System Restore Point (automatic, before anything runs) | ❌ | ❌ | ❌ | ✅ |
 | Windows sanitation (bundled, auditable, no downloads) | ❌ | ❌ | ⚠️ DIY | ✅ opt-in |
 
-> **On Windows sanitization:** The optional sanitation step runs a bundled PowerShell script (`scripts/sanitize.ps1`) that applies a curated set of privacy and performance registry/service tweaks — no external downloads, no GUI, fully auditable in the repo.
+> **On Windows sanitization:** The optional sanitation step runs a bundled PowerShell script (`scripts/sanitize.ps1`) that applies a curated set of privacy and performance registry/service tweaks — no external downloads, no GUI, fully auditable in the repo. Tweak selection was researched against [Chris Titus Tech's WinUtil](https://github.com/ChrisTitusTech/winutil) (MIT) and verified current as of April 2026. AM-DevKit's implementation is independent native PowerShell — no WinUtil code executes at runtime. See [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md) for full attribution.
 
 ---
 

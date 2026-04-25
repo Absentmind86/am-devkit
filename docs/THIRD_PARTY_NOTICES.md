@@ -36,11 +36,18 @@ runs `scripts/sanitize.ps1` — a **bundled PowerShell script** that applies reg
 and service tweaks directly. **No external download occurs.** No third-party tool is
 invoked.
 
-The tweak names in `config/am-devkit-winutil*.json` use `WPFTweaks`-prefixed
-identifiers that were originally derived from [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil)
-naming conventions for reference and documentation purposes only. AM-DevKit no longer
-calls WinUtil at runtime. The actual implementation is entirely AM-DevKit’s own code
-in `scripts/sanitize.ps1`, covered by the project’s MIT license.
+**Tweak selection attribution:** The specific registry keys, services, and settings
+targeted by AM-DevKit’s sanitization presets were researched and selected by
+referencing [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil)
+(MIT license, © Chris Titus Tech). The tweak set was verified current as of
+**April 2026**. WinUtil’s `WPFTweaks`-prefixed identifiers are used in
+`config/am-devkit-winutil*.json` for traceability back to the source.
+
+AM-DevKit does **not** execute any WinUtil code at runtime. The PowerShell
+implementation in `scripts/sanitize.ps1` was written independently and is
+covered by AM-DevKit’s own MIT license. Users who want to verify parity or
+check for upstream changes can compare against the WinUtil source at the link
+above.
 
 ---
 

@@ -3,11 +3,57 @@
 Defines the two built-in presets (Minimal and Standard) with curated
 descriptions shown in the GUI and pre-install summary.  The tweaks
 themselves are implemented in scripts/sanitize.ps1 — no external downloads.
+
+Tweak selection was derived from Chris Titus Tech WinUtil
+(github.com/ChrisTitusTech/winutil) and verified current as of April 2026.
+The implementation is AM-DevKit's own native PowerShell — no CTT code runs.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+# Human-readable labels for each WPFTweaks ID used by AM-DevKit.
+TWEAK_LABELS: dict[str, str] = {
+    "WPFTweaksTelemetry":                 "Disable Windows telemetry (DiagTrack, dmwappushservice, CEIP)",
+    "WPFTweaksConsumerFeatures":          "Disable Microsoft Consumer Features (suggested / promoted apps)",
+    "WPFTweaksServices":                  "Tune background services (disable unused; SvcHost threshold set to RAM size)",
+    "WPFTweaksWPBT":                      "Disable WPBT (Windows Platform Binary Table — blocks vendor-injected binaries on boot)",
+    "WPFTweaksActivity":                  "Disable Activity History (Windows Timeline data collection)",
+    "WPFTweaksDisableExplorerAutoDiscovery": "Disable Explorer auto-discovery (clears Bags/BagMRU shell registry keys)",
+    "WPFTweaksGameDVR":                   "Disable Game DVR / Xbox Game Bar background recording",
+    "WPFTweaksLocation":                  "Disable Location Services",
+    "WPFTweaksDiskCleanup":              "Disable Disk Cleanup telemetry reporting",
+    "WPFTweaksDeleteTempFiles":           "Delete temporary files (%TEMP% and Windows\\Temp)",
+    "WPFTweaksEndTaskOnTaskbar":          "Enable End Task on taskbar right-click",
+    "WPFTweaksRestorePoint":              "Create a System Restore Point before applying tweaks",
+    "WPFTweaksPowershell7Tele":          "Disable PowerShell 7 telemetry (POWERSHELL_TELEMETRY_OPTOUT)",
+}
+
+# Ordered tweak lists per preset (matches config/am-devkit-winutil*.json).
+PRESET_TWEAKS: dict[str, list[str]] = {
+    "Minimal": [
+        "WPFTweaksTelemetry",
+        "WPFTweaksConsumerFeatures",
+        "WPFTweaksServices",
+        "WPFTweaksWPBT",
+    ],
+    "Standard": [
+        "WPFTweaksTelemetry",
+        "WPFTweaksConsumerFeatures",
+        "WPFTweaksServices",
+        "WPFTweaksWPBT",
+        "WPFTweaksActivity",
+        "WPFTweaksDisableExplorerAutoDiscovery",
+        "WPFTweaksGameDVR",
+        "WPFTweaksLocation",
+        "WPFTweaksDiskCleanup",
+        "WPFTweaksDeleteTempFiles",
+        "WPFTweaksEndTaskOnTaskbar",
+        "WPFTweaksRestorePoint",
+        "WPFTweaksPowershell7Tele",
+    ],
+}
 
 CURATED_DESCRIPTIONS: dict[str, str] = {
     "Minimal": (

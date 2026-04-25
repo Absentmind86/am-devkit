@@ -554,6 +554,47 @@ def main_gui() -> None:
                 on_click=lambda _e, p=pid: open_profile_info(p),
             )
 
+        def open_sanitation_info(_e: ft.ControlEvent | None = None) -> None:
+            from core.winutil_presets import TWEAK_LABELS, PRESET_TWEAKS
+            dlg_title.value = "Sanitization tweaks"
+            dlg_body.controls.clear()
+
+            minimal = PRESET_TWEAKS["Minimal"]
+            standard_extra = [t for t in PRESET_TWEAKS["Standard"] if t not in minimal]
+
+            dlg_body.controls.append(ft.Text(
+                f"Minimal preset ({len(minimal)} tweaks):",
+                weight=ft.FontWeight.BOLD, size=13,
+            ))
+            for tweak in minimal:
+                dlg_body.controls.append(ft.Text(
+                    f"  \u2022 {TWEAK_LABELS.get(tweak, tweak)}", size=12,
+                ))
+
+            dlg_body.controls.append(ft.Divider())
+            dlg_body.controls.append(ft.Text(
+                f"Standard adds ({len(standard_extra)} more tweaks):",
+                weight=ft.FontWeight.BOLD, size=13,
+            ))
+            for tweak in standard_extra:
+                dlg_body.controls.append(ft.Text(
+                    f"  \u2022 {TWEAK_LABELS.get(tweak, tweak)}", size=12,
+                ))
+
+            dlg_body.controls.append(ft.Divider())
+            dlg_body.controls.append(ft.Text(
+                "Tweak selection derived from Chris Titus Tech WinUtil "
+                "(github.com/ChrisTitusTech/winutil), verified current as of April 2026. "
+                "Implementation is AM-DevKit's own native PowerShell (scripts/sanitize.ps1) "
+                "— no external downloads, no GUI, fully auditable in the repo.",
+                size=11, italic=True, color=ft.Colors.ON_SURFACE_VARIANT,
+            ))
+
+            if info_dlg not in page.overlay:
+                page.overlay.append(info_dlg)
+            info_dlg.open = True
+            page.update()
+
         # ------------------------------------------------------------------
         # Tool checkbox helpers
         # ------------------------------------------------------------------
@@ -1198,7 +1239,17 @@ def main_gui() -> None:
             content=ft.Column(
                 [
                     ft.Text("Install options", weight=ft.FontWeight.BOLD, size=18),
-                    dry_run, run_sanitation, sanitation_presets_section,
+                    dry_run,
+                    ft.Row([
+                        run_sanitation,
+                        ft.IconButton(
+                            icon=ft.Icons.INFO_OUTLINE,
+                            tooltip="See exactly what registry and service tweaks each preset applies",
+                            icon_size=16,
+                            on_click=open_sanitation_info,
+                        ),
+                    ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    sanitation_presets_section,
                     skip_rp, skip_dotfiles, skip_rust, assume_yes, skip_summary,
                     ft.Divider(),
                     ml_wheels, ml_base,
