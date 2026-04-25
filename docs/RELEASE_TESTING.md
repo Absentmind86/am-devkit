@@ -209,9 +209,9 @@ Commit: <SHA>
 Tester: <name>
 Date: <YYYY-MM-DD>
 
-VM environment:
+Environment:
   OS: Windows 11 <build> / Windows 10 <build>
-  VM host: <VMware / Hyper-V / VirtualBox / bare metal>
+  Machine: <bare metal / VM host>
   Python: <version>
   Winget: <version> (winget --version)
 
@@ -232,4 +232,54 @@ Known issues / deviations:
   <none | describe>
 
 Ready to tag: yes / no
+```
+
+---
+
+## 13. Completed sign-offs
+
+### v0.8.0-phase4 — 2026-04-25
+
+```
+Release: v0.8.0-phase4
+Commit: 1b73d9de5c0155a0f297d809c8ac484451a19bf7
+Tester: Absentmind
+Date: 2026-04-25
+
+Environment:
+  OS: Windows 11 26200.8246
+  Machine: bare metal (daily-driver — cold-start validation)
+  Python: 3.12
+  Winget: (system winget)
+
+Sections completed:
+  [x] 1. Environment — fresh Windows install, fully updated
+  [x] 2. Static checks — passed
+  [x] 3. Winget ID smoke-test — passed (unity-hub excluded, see known issues)
+  [x] 4. Layer 0 + scan — passed
+  [x] 5. CLI dry-run smoke — passed
+  [x] 6. GUI smoke — passed
+  [x] 7. Pre-install summary accuracy — passed
+  [x] 8. Destructive smoke (a/b/c/d) — full install: all profiles + extras +
+         Standard sanitization; all 13 tweaks applied, restore point created,
+         exit 0; machine fully functional after
+  [x] 9. Bootstrap paths — validated (fresh Windows > Windows Update > bootstrap
+         fresh.ps1; this was the actual test run, not a re-run)
+  [ ] 10. SmartScreen — not explicitly tested
+  [ ] 11. Regression triggers — n/a (this is the baseline run)
+
+Known issues / deviations:
+  - unity-hub: winget installer hash mismatch (exit 2316632081). Root cause is
+    Unity's CDN serving a different binary than the winget catalog expects.
+    Not an AM-DevKit bug. Workaround: install Unity Hub manually from
+    unity.com/download, then re-run the installer (it will detect and skip it).
+  - PATH auditor reports 3 expected shadows — not functional issues:
+      klist.exe    : JDK 21 bin shadows C:\Windows\System32\klist.exe (harmless;
+                     both are Kerberos tools, JDK version is preferred for Java dev)
+      kubectl.exe  : Docker Desktop's bundled kubectl shadows winget kubectl
+                     (same binary, Docker's copy wins — no functional impact)
+      code-tunnel.exe : VS Code shadows Cursor's code-tunnel (both editors
+                        work correctly; tunneling via VS Code binary is fine)
+
+Ready to tag: yes
 ```
