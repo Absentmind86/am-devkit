@@ -272,9 +272,19 @@ def _extras_paths(tool: str) -> list[Path]:
             loc / "Programs" / "Bitwarden" / "Bitwarden.exe",
             pf / "Bitwarden" / "Bitwarden.exe",
         ],
+        "keepassxc": [
+            pf / "KeePassXC" / "KeePassXC.exe",
+            pfx86 / "KeePassXC" / "KeePassXC.exe",
+        ],
+        "fork-git-client": [
+            loc / "Fork" / "Fork.exe",
+            pf / "Fork" / "Fork.exe",
+        ],
         "autohotkey": [
+            pf / "AutoHotkey" / "AutoHotkey.exe",        # winget v2 launcher
+            pf / "AutoHotkey" / "v2" / "AutoHotkey64.exe",  # v2 native exe
             pf / "AutoHotkey" / "v2" / "AutoHotkey.exe",
-            pfx86 / "AutoHotkey" / "v2" / "AutoHotkey.exe",
+            pfx86 / "AutoHotkey" / "AutoHotkey.exe",
         ],
         "discord": [
             loc / "Discord" / "app-1.0.0" / "Discord.exe",
