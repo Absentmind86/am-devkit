@@ -2,8 +2,22 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+_SCOOP_BUNDLE_TOOLS = ["bat.exe", "rg.exe", "fd.exe", "fzf.exe", "jq.exe", "lazygit.exe", "delta.exe"]
+
+
+def _scoop_bundle_present() -> bool:
+    """Return True if all scoop CLI bundle tools are in scoop shims or PATH."""
+    shims = Path(os.environ.get("USERPROFILE", "")) / "scoop" / "shims"
+    return all(
+        (shims / t).is_file() or shutil.which(t) is not None
+        for t in _SCOOP_BUNDLE_TOOLS
+    )
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -189,6 +203,16 @@ def ensure_scoop_cli_bundle(
 ) -> None:
     """Install common CLI tools via Scoop (extras bucket for git-delta)."""
     tool = "scoop-cli-bundle"
+    if _scoop_bundle_present():
+        manifest.record_tool(
+            tool=tool,
+            layer="infrastructure",
+            status="skipped",
+            install_method="scoop",
+            notes="All bundle tools already present (bat, rg, fd, fzf, jq, lazygit, delta).",
+        )
+        console.print(f"  [skipped] {tool} — already installed")
+        return
     if ctx.dry_run:
         manifest.record_tool(
             tool=tool,
@@ -336,11 +360,25 @@ def ensure_wsl_prereq(
         return
 
     ps = r"""
+$ErrorActionPreference = 'Continue'
+function Get-FeatureState($name) {
+    $out = & dism.exe /online /get-featureinfo /featurename:$name 2>&1
+    ($out | Where-Object { $_ -match 'State\s*:.*Enabled' }) -ne $null
+}
+$wslOn = Get-FeatureState 'Microsoft-Windows-Subsystem-Linux'
+$vmpOn = Get-FeatureState 'VirtualMachinePlatform'
+if ($wslOn -and $vmpOn) { exit 99 }
 $ErrorActionPreference = 'Stop'
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-$c1 = $LASTEXITCODE
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
-$c2 = $LASTEXITCODE
+$c1 = 0
+$c2 = 0
+if (-not $wslOn) {
+    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+    $c1 = $LASTEXITCODE
+}
+if (-not $vmpOn) {
+    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+    $c2 = $LASTEXITCODE
+}
 if ($c1 -eq 3010 -or $c2 -eq 3010) { exit 3010 }
 if ($c1 -ne 0) { exit $c1 }
 if ($c2 -ne 0) { exit $c2 }
@@ -348,6 +386,16 @@ exit 0
 """
     console.print(f"  [installing] {tool} via DISM (streaming output below — takes 2-5 min) …")
     code, _out, _err = run_powershell(ps, timeout_s=600.0, stream=True)
+    if code == 99:
+        manifest.record_tool(
+            tool=tool,
+            layer="devops",
+            status="skipped",
+            install_method="DISM",
+            notes="WSL and VirtualMachinePlatform features already enabled.",
+        )
+        console.print(f"  [skipped] {tool} — features already enabled")
+        return
     if code in (0, 3010):
         reboot = code == 3010
         if reboot:

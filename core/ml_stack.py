@@ -45,7 +45,19 @@ def _pip_ml_base(ctx: InstallContext, manifest: Manifest, console: Console) -> N
 
     import subprocess
 
-    argv = [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", *pkgs.split()]
+    _pkg_list = pkgs.split()
+    _show = subprocess.run(
+        [sys.executable, "-m", "pip", "show", *_pkg_list],
+        capture_output=True, text=True, timeout=60.0,
+    )
+    _found = sum(1 for line in _show.stdout.splitlines() if line.startswith("Name:"))
+    if _found == len(_pkg_list):
+        manifest.record_tool(tool=tool, layer="ml_stack", status="skipped", install_method="pip",
+                             notes="All packages already installed.")
+        console.print(f"  [skipped] {tool} — already installed")
+        return
+
+    argv = [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", *_pkg_list]
     console.print(f"  [installing] {tool} via pip (streaming output below)…")
     proc = subprocess.run(argv, capture_output=False, text=True, timeout=3600.0)
     if proc.returncode == 0:
@@ -117,9 +129,11 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
         import subprocess
 
         if _is_directml:
-            argv = [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", "torch-directml"]
+            _torch_pkg = "torch-directml"
+            argv = [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", _torch_pkg]
             label = "PyTorch + DirectML (AMD GPU)"
         else:
+            _torch_pkg = "torch"
             argv = [
                 sys.executable, "-m", "pip", "install", "--upgrade", "--quiet",
                 "torch", "torchvision", "torchaudio",
@@ -127,25 +141,36 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
             ]
             label = "PyTorch wheels"
 
-        console.print(f"  [installing] {label} via pip (streaming output below)…")
-        proc = subprocess.run(argv, capture_output=False, text=True, timeout=3600.0)
-        if proc.returncode == 0:
-            manifest.record_tool(
-                tool="pytorch-pip",
-                layer="ml_stack",
-                status="installed",
-                install_method="pip",
-            )
-            console.print(f"  [done] {label}")
+        _torch_show = subprocess.run(
+            [sys.executable, "-m", "pip", "show", _torch_pkg],
+            capture_output=True, text=True, timeout=60.0,
+        )
+        if _torch_show.returncode == 0 and any(
+            ln.startswith("Name:") for ln in _torch_show.stdout.splitlines()
+        ):
+            manifest.record_tool(tool="pytorch-pip", layer="ml_stack", status="skipped",
+                                 install_method="pip", notes=f"{_torch_pkg} already installed.")
+            console.print(f"  [skipped] {label} — already installed")
         else:
-            manifest.record_tool(
-                tool="pytorch-pip",
-                layer="ml_stack",
-                status="failed",
-                install_method="pip",
-                notes=f"exit {proc.returncode}: see terminal output above",
-            )
-            console.print(f"  [failed] {label} (exit {proc.returncode})")
+            console.print(f"  [installing] {label} via pip (streaming output below)…")
+            proc = subprocess.run(argv, capture_output=False, text=True, timeout=3600.0)
+            if proc.returncode == 0:
+                manifest.record_tool(
+                    tool="pytorch-pip",
+                    layer="ml_stack",
+                    status="installed",
+                    install_method="pip",
+                )
+                console.print(f"  [done] {label}")
+            else:
+                manifest.record_tool(
+                    tool="pytorch-pip",
+                    layer="ml_stack",
+                    status="failed",
+                    install_method="pip",
+                    notes=f"exit {proc.returncode}: see terminal output above",
+                )
+                console.print(f"  [failed] {label} (exit {proc.returncode})")
     elif ctx.install_ml_wheels and ctx.dry_run:
         dry_note = (
             "Would pip install torch-directml (AMD DirectX 12 GPU)"

@@ -48,13 +48,17 @@ def run_devops(ctx: InstallContext, manifest: Manifest, console: Console) -> Non
     # Docker Desktop fails with "C:\ProgramData\DockerDesktop must be owned by
     # an elevated account" when a prior partial install left that directory owned
     # by a non-admin process.  Fix ownership upfront so the installer can proceed.
+    # Skip if docker.exe is already on PATH — docker is already installed and
+    # the ownership was set correctly on the first install.
     if not ctx.dry_run:
+        from core.winget_util import which as _which
         selected = set(ctx.profiles)
         docker_wanted = any(
             e.tool == "docker-desktop" and e.applies_to(selected) and e.tool not in ctx.catalog_exclude_tools
             for e in catalog_entries_for_layer("devops")
         )
-        if docker_wanted:
+        docker_installed = _which("docker.exe") is not None
+        if docker_wanted and not docker_installed:
             from core.pwsh_util import run_powershell
             console.print("  [installing] docker-desktop permissions fix …")
             run_powershell(

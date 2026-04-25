@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from core.pwsh_util import run_powershell
 from core.winget_util import which
+
+
+def _pyenv_in_scoop_shims() -> bool:
+    shims = Path(os.environ.get("USERPROFILE", "")) / "scoop" / "shims"
+    return (shims / "pyenv.exe").is_file() or (shims / "pyenv.ps1").is_file()
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -17,7 +24,7 @@ if TYPE_CHECKING:
 def ensure_pyenv_scoop(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     """``pyenv`` userland install (Scoop). Falls back gracefully if Scoop is missing."""
     tool = "pyenv-win"
-    if which("pyenv.exe") is not None:
+    if which("pyenv.exe") is not None or _pyenv_in_scoop_shims():
         manifest.record_tool(
             tool=tool,
             layer="languages",

@@ -367,7 +367,10 @@ def get_detector(entry: WingetCatalogEntry) -> Callable[[], bool]:
             shutil.which("godot.exe") or shutil.which("Godot.exe") or shutil.which("godot4_console.exe")
         )
     if entry.tool == "unity-hub":
-        return lambda: bool(shutil.which("Unity Hub.exe") or shutil.which("Unity.exe"))
+        _uh_pf  = Path(os.environ.get("PROGRAMFILES",      "C:\\Program Files"))          / "Unity Hub" / "Unity Hub.exe"
+        _uh_pf86 = Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"))   / "Unity Hub" / "Unity Hub.exe"
+        _uh_local = Path(os.environ.get("LOCALAPPDATA",    "")) / "Programs" / "Unity Hub" / "Unity Hub.exe"
+        return lambda: bool(_uh_pf.is_file() or _uh_pf86.is_file() or _uh_local.is_file() or shutil.which("unityhub"))
     if exe == "java.exe":
         return lambda: bool(shutil.which("java.exe") or shutil.which("javac.exe"))
     if exe == "az.cmd":
