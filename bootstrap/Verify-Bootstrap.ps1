@@ -53,6 +53,7 @@ $ScriptUrl   = "$BaseUrl/fresh.ps1"
 $ChecksumUrl = "$BaseUrl/CHECKSUMS.sha256"
 
 $TempScript  = Join-Path $env:TEMP "am-devkit-fresh-$(Get-Random).ps1"
+$script:KeepFile = $false   # set to $true when user says N so finally doesn't delete
 
 try {
 
@@ -112,10 +113,11 @@ try {
     if (-not $AutoRun) {
         $answer = Read-Host 'Hashes match. Run fresh.ps1 now? [Y/N]'
         if ($answer -notmatch '^[Yy]') {
+            $script:KeepFile = $true
             Write-Host ''
             Write-Host "Script kept at $TempScript — run it yourself when ready." -ForegroundColor Yellow
             Write-Host "  & `"$TempScript`""
-            exit 0
+            return
         }
     }
 
@@ -125,8 +127,7 @@ try {
     & $TempScript
 
 } finally {
-    # Clean up temp file if it still exists and the script ran (or failed)
-    if (Test-Path $TempScript) {
+    if (-not $script:KeepFile -and (Test-Path $TempScript)) {
         Remove-Item $TempScript -Force -ErrorAction SilentlyContinue
     }
 }
