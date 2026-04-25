@@ -1,15 +1,12 @@
-"""Unit tests for core/winutil_presets.py — fetch/fallback/ordering logic."""
+"""Unit tests for core/winutil_presets.py — preset parsing and fallback logic."""
 
 from __future__ import annotations
-
-import json
 
 from core.winutil_presets import (
     CURATED_DESCRIPTIONS,
     PresetInfo,
     _parse_preset_json,
     fallback_presets,
-    get_tweaks_for_preset,
 )
 
 # ---------------------------------------------------------------------------
@@ -97,80 +94,3 @@ class TestFallbackPresets:
     def test_returns_preset_info_instances(self):
         for p in fallback_presets():
             assert isinstance(p, PresetInfo)
-
-
-# ---------------------------------------------------------------------------
-# get_tweaks_for_preset (mocked network)
-# ---------------------------------------------------------------------------
-
-class TestGetTweaksForPreset:
-    def _mock_fetch(self, monkeypatch, data: dict) -> None:
-        """Patch fetch_presets to return parsed presets from *data*."""
-        presets = _parse_preset_json(data)
-        monkeypatch.setattr("core.winutil_presets.fetch_presets", lambda **kw: presets)
-
-    def test_returns_tweaks_for_known_key(self, monkeypatch):
-        self._mock_fetch(monkeypatch, {"Minimal": ["T1", "T2"]})
-        result = get_tweaks_for_preset("Minimal")
-        assert result == ["T1", "T2"]
-
-    def test_case_insensitive_key_lookup(self, monkeypatch):
-        self._mock_fetch(monkeypatch, {"Minimal": ["T1"]})
-        assert get_tweaks_for_preset("minimal") == ["T1"]
-        assert get_tweaks_for_preset("MINIMAL") == ["T1"]
-
-    def test_missing_key_returns_empty(self, monkeypatch):
-        self._mock_fetch(monkeypatch, {"Minimal": ["T1"]})
-        assert get_tweaks_for_preset("NonExistent") == []
-
-    def test_network_failure_returns_empty(self, monkeypatch):
-        def _fail(**kw):
-            raise OSError("network down")
-        monkeypatch.setattr("core.winutil_presets.fetch_presets", _fail)
-        assert get_tweaks_for_preset("Minimal") == []
-
-    def test_returns_list(self, monkeypatch):
-        self._mock_fetch(monkeypatch, {"Standard": ["WPFTweakA", "WPFTweakB"]})
-        result = get_tweaks_for_preset("Standard")
-        assert isinstance(result, list)
-
-
-# ---------------------------------------------------------------------------
-# fetch_presets (mocked network — pinned path)
-# ---------------------------------------------------------------------------
-
-class TestFetchPresets:
-    def test_pinned_path_verifies_and_parses(self, monkeypatch, tmp_path):
-        """Stub download_verified to return a tmp JSON file; no real network."""
-        preset_data = {"Minimal": ["T1"], "Standard": ["T1", "T2"]}
-        tmp_json = tmp_path / "preset.json"
-        tmp_json.write_text(json.dumps(preset_data), encoding="utf-8")
-
-        import core.winutil_pin as pin_module
-
-        monkeypatch.setattr(
-            pin_module, "download_verified",
-            lambda url, sha, *, timeout=30.0, suffix=".json": tmp_json,
-        )
-        from core.winutil_presets import fetch_presets
-        presets = fetch_presets(latest=False)
-        keys = [p.key for p in presets]
-        assert "Minimal" in keys
-        assert "Standard" in keys
-
-    def test_latest_path_fetches_live(self, monkeypatch, tmp_path):
-        """Stub urllib.request.urlopen to return a BytesIO of preset JSON."""
-        preset_data = {"Minimal": ["T1"]}
-        encoded = json.dumps(preset_data).encode()
-
-        class _FakeResp:
-            def read(self): return encoded
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-
-        import urllib.request
-        monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout=30: _FakeResp())
-
-        from core.winutil_presets import fetch_presets
-        presets = fetch_presets(latest=True)
-        assert any(p.key == "Minimal" for p in presets)

@@ -43,8 +43,6 @@ class InstallContext:
     catalog_exclude_tools: frozenset[str] = field(default_factory=frozenset)
     # WinUtil preset key (e.g. "Minimal", "Standard"). Matched case-insensitively against upstream preset.json.
     sanitation_preset: str = "Minimal"
-    # Opt into the live (unpinned) CTT WinUtil script. Default is the hash-verified pinned release.
-    winutil_latest: bool = False
     # Skip rustup + rust toolchain install even when a profile would request it.
     skip_rust: bool = False
     # Set by ensure_wsl_prereq when DISM returns 3010 (reboot required). When true,
@@ -69,7 +67,7 @@ def default_profiles_from_absentmind() -> list[str]:
 
 
 def winutil_config_path_for_preset(repo_root: Path, sanitation_preset: str) -> Path:
-    """JSON file passed to CTT WinUtil ``-Config`` for the chosen sanitation preset."""
+    """JSON config file listing tweaks for the chosen sanitation preset (used by pre-install summary)."""
     p = (sanitation_preset or "minimal").strip().lower()
     if p == "standard":
         return (repo_root / "config" / "am-devkit-winutil-standard.json").resolve()
