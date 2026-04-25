@@ -8,7 +8,7 @@ This document satisfies common expectations for attribution, describes **bundled
 
 ## Disclaimer
 
-AM-DevKit is **not** affiliated with Microsoft, Chris Titus Tech / CT Tech Group LLC, Chris Titus Tech contributors, Flutter/Flet/Appveyor Systems Inc., or any application publisher installed via Winget or other installers. Names and trademarks belong to their owners.
+AM-DevKit is **not** affiliated with Microsoft, Flutter/Flet/Appveyor Systems Inc., or any application publisher installed via Winget or other installers. Names and trademarks belong to their owners.
 
 Use third-party installers and OS tweaks **at your own risk**. Review each vendor’s license before use on production systems. AM-DevKit authors provide the orchestration scripts **without warranty**, as stated in `LICENSE`.
 
@@ -29,15 +29,18 @@ Apache-2.0 obligations for **distribution** of binaries that embed Flet typicall
 
 ---
 
-## Windows sanitization — Chris Titus Tech WinUtil
+## Windows sanitization
 
-When `--run-sanitation` / the GUI sanitation option is enabled, `core/sanitize.py` runs PowerShell that **downloads and executes** the utility hosted at **`https://christitus.com/win`** (Invoke-RestMethod / `irm`), passing one of the repo’s WinUtil JSON presets as `-Config` and `-Run` (`am-devkit-winutil.json` for `--sanitation-preset minimal`, `am-devkit-winutil-standard.json` for `standard`; tweak IDs align with Chris Titus Tech [`preset.json`](https://github.com/ChrisTitusTech/winutil/blob/main/config/preset.json) Minimal / Standard lists).
+When `--run-sanitation` / the GUI sanitation option is enabled, `core/sanitize.py`
+runs `scripts/sanitize.ps1` — a **bundled PowerShell script** that applies registry
+and service tweaks directly. **No external download occurs.** No third-party tool is
+invoked.
 
-- **WinUtil** upstream is maintained at [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil).
-- Its license is **MIT** (“Copyright (c) 2022 CT Tech Group LLC”). Full text:  
-  https://github.com/ChrisTitusTech/winutil/blob/main/LICENSE  
-
-AM-DevKit **does not embed** WinUtil source in this repository. Execution pulls the live script **over the network**; behavior may change when upstream updates. The JSON preset in `config/am-devkit-winutil.json` uses **`WPFTweaks`** tweak identifiers aligned with WinUtil’s automation format; tweak definitions are authored by the WinUtil project.
+The tweak names in `config/am-devkit-winutil*.json` use `WPFTweaks`-prefixed
+identifiers that were originally derived from [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil)
+naming conventions for reference and documentation purposes only. AM-DevKit no longer
+calls WinUtil at runtime. The actual implementation is entirely AM-DevKit’s own code
+in `scripts/sanitize.ps1`, covered by the project’s MIT license.
 
 ---
 
@@ -65,7 +68,7 @@ When selected profiles request ML tooling, installers may pull wheels from NVIDI
 |-----------|------------------|-------------------------|
 | AM-DevKit scripts | Yes | MIT (`LICENSE`) |
 | **rich**, **flet** (pip) | No (PyPI) | MIT / Apache-2.0 |
-| WinUtil script | No (download at runtime) | MIT (CT Tech Group LLC) |
+| sanitize.ps1 | Yes (bundled) | MIT (same as repo) |
 | Winget packages | No | Per-package + Microsoft |
 | PowerShell bootstrap | Yes (MIT project) | Same as repo |
 

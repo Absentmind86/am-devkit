@@ -14,7 +14,7 @@ One command. Walk away. Come back to a fully configured, GPU-intelligent dev env
 It is **not**:
 - A package manager (Winget/Scoop/Choco handle that)
 - A dotfile manager (though it seeds dotfiles)
-- A general-purpose Windows tweaker (CTT WinUtil handles sanitation)
+- A general-purpose Windows tweaker (native sanitization is opt-in and minimal)
 
 It **is**:
 - A reproducibility layer that ties all of the above together — one run, one manifest, one restore script
@@ -40,7 +40,7 @@ Delivered:
 
 CLI-only usage remains supported (`python -m core.installer`). Do not skip manifest writes.
 
-**Phase 2 (complete baseline)** — `installer.py` orchestration, layer modules, WinUtil (`--run-sanitation`), manifest + HTML report, PATH auditor.
+**Phase 2 (complete baseline)** — `installer.py` orchestration, layer modules, native sanitization (`--run-sanitation`), manifest + HTML report, PATH auditor.
 
 ---
 
@@ -93,7 +93,7 @@ absentmind-devkit/
 │   ├── pre_install_summary.py  ← CLI pre-install summary + optional confirm (after Layer 0)
 │   ├── preflight.py            ← Restore point + Absentmind Mode toggle
 │   ├── system_scan.py          ← Layer 0: hardware detection → system-profile.json
-│   ├── sanitize.py             ← Layer 1: invokes CTT WinUtil with preset (Minimal/Standard)
+│   ├── sanitize.py             ← Layer 1: runs scripts/sanitize.ps1 (native PS, no downloads)
 │   ├── infrastructure.py       ← Layer 2: bootstrap tools (Git, Python, Scoop) + core infra
 │   ├── editors.py              ← Layer 3: VS Code, Cursor, extensions
 │   ├── languages.py            ← Layer 4: Python ecosystem, Node, Rust
@@ -105,12 +105,11 @@ absentmind-devkit/
 │   ├── sandbox.py              ← Layer 8.5: Disposable Workspace config
 │   ├── launchpad.py            ← Post-install launchpad: .cmd scripts + HTML section
 │   ├── restore_bundle.py       ← Restore point / restore bundle helpers
-│   ├── winutil_pin.py          ← SHA256-pinned WinUtil release with opt-in unpinned mode
-│   └── winutil_presets.py      ← WinUtil preset registry (Minimal/Standard + descriptions)
+│   └── winutil_presets.py      ← Sanitization preset descriptions (Minimal/Standard)
 │
 ├── config/
-│   ├── am-devkit-winutil.json        ← WinUtil tweaks: conservative (minimal)
-│   ├── am-devkit-winutil-standard.json  ← WinUtil tweaks: CTT preset.json Standard set
+│   ├── am-devkit-winutil.json        ← Sanitization tweak list: Minimal preset (documentation)
+│   ├── am-devkit-winutil-standard.json  ← Sanitization tweak list: Standard preset (documentation)
 │   ├── profiles/
 │   │   ├── ai-ml.toml              ← Stub (profile gating lives in install_catalog.py)
 │   │   ├── web-fullstack.toml      ← Stub (profile gating lives in install_catalog.py)
@@ -129,6 +128,7 @@ absentmind-devkit/
 │   ├── restore-devkit.ps1          ← Restore script template
 │   ├── restore-winget-from-manifest.ps1  ← Replays winget installs from devkit-manifest.json
 │   ├── scan-all-tools.py           ← Standalone tool presence scanner
+│   ├── sanitize.ps1                ← Native sanitization script (no downloads; Minimal/Standard)
 │   ├── smoke-test-winget-ids.py    ← Validates every WINGET_CATALOG ID via winget show --exact
 │   └── verify-install.py           ← Post-install verification against catalog
 │
@@ -137,7 +137,7 @@ absentmind-devkit/
 │   ├── test_gpu_detect.py          ← 36 tests: vendor detection, CUDA parse, wheel tag selection
 │   ├── test_install_catalog.py     ← 20 tests: applies_to, layer queries, catalog integrity
 │   ├── test_path_auditor.py        ← 12 tests: conflict detection, false-positive suppression
-│   └── test_winutil_presets.py     ← 22 tests: parse, ordering, fallback, mocked fetch/network
+│   └── test_winutil_presets.py     ← 12 tests: parse, ordering, fallback
 │
 ├── templates/
 │   ├── dotfiles/
@@ -187,7 +187,7 @@ absentmind-devkit/
 
 ### Licensing
 
-- Repository license: **MIT** (`LICENSE`). Third-party attribution and runtime tools (WinUtil, Winget, pip deps): **`docs/THIRD_PARTY_NOTICES.md`**. Update that document when adding **direct** `requirements.txt` dependencies or materially changing external integrations.
+- Repository license: **MIT** (`LICENSE`). Third-party attribution and runtime tools (Winget, pip deps): **`docs/THIRD_PARTY_NOTICES.md`**. Update that document when adding **direct** `requirements.txt` dependencies or materially changing external integrations.
 
 ### The Manifest
 - Every decision made during install must be written to `devkit-manifest.json`
@@ -245,7 +245,7 @@ source. Run it before release or when winget IDs change.
 1. **Do not install anything without checking if it already exists first.** Layer 0 scans for existing installs. Respect that data.
 2. **Do not modify the user's PATH directly** — use Winget/Scoop/installers and let them handle PATH registration. Log what changed.
 3. **Do not hard-code paths.** Everything relative to detected user home or install root.
-4. **`config/am-devkit-winutil.json` is the CTT WinUtil export (``WPFTweaks`` ids).** The repo ships a **conservative** preset (Chris Titus “Minimal”-style tweak set). Do not expand to aggressive bloat removal without review and VM testing; user requests to change sanitation are explicit permission to edit.
+4. **`scripts/sanitize.ps1` owns the sanitization implementation.** `config/am-devkit-winutil*.json` documents the tweak lists for each preset (used only by the pre-install summary display). The actual registry/service changes are in the PS1 script. Do not add aggressive bloat removal without review and VM testing; user requests to change sanitation are explicit permission to edit.
 5. **Do not skip the manifest write.** Even for tools that were already installed (mark them `skipped`, not absent).
 6. **`gpu_detect.py` must be runnable standalone** — it will be validated on real hardware before the rest of the stack is built. Keep it importable and independently testable.
 7. **GUI is Flet (`core/gui.py`).** Profile selection remains available via CLI flags (`--profile`, `--absentmind`).
@@ -265,7 +265,7 @@ source. Run it before release or when winget IDs change.
 | Python in Core | Yes — always installs | Near-universal dependency |
 | Profile system | Multi-select, additive | Users often need more than one stack |
 | Absentmind Mode | All *core* profiles (no Extras), no prompts | Extras stay opt-in (`config/profiles/extras.toml`) |
-| Sanitation | CTT WinUtil, preset-level toggle in UI (Minimal / Standard radio) | We own the config, CTT owns the execution |
+| Sanitation | Native PowerShell (`scripts/sanitize.ps1`), preset-level toggle in UI (Minimal / Standard radio) | No external downloads; we own the config and execution |
 | Path Auditor output | First section of HTML report, red banner on conflicts | Highest-value diagnostic, must be impossible to miss |
 | Post-install Launchpad | Profile-aware, one-click concrete outcomes only | No links pages, no "learn more" |
 | Code signing (v0.8) | No signing — document SmartScreen flows in README | `irm\|iex` has no MOTW; `git clone` has no MOTW; browser download needs `Unblock-File` |
@@ -277,7 +277,7 @@ source. Run it before release or when winget IDs change.
 
 - [x] `python -m core.installer --dry-run --profile systems` completes and writes manifest + HTML + PATH fingerprint
 - [x] `python -m core.installer` (non-dry) runs layers without a single uncaught exception aborting the run
-- [x] `--run-sanitation` invokes WinUtil with the AM JSON config (validated on a throwaway VM first)
+- [x] `--run-sanitation` invokes `scripts/sanitize.ps1` (validated on a throwaway VM first)
 - [x] `bootstrap/install.ps1 -FullInstall` runs the Phase 2 installer from repo root
 
 ### Phase 1 exit criteria (baseline) ✅

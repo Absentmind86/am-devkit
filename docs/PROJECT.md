@@ -46,22 +46,22 @@ AM-DevKit is a standalone product under the Absentmind brand — not under AM St
 
 ## What Makes This Different
 
-| Feature | CTT WinUtil | Winget | Dev Home | **AM-DevKit** |
-|---|---|---|---|---|
-| Bloat removal | ✅ | ❌ | ❌ | ✅ (via CTT) |
-| App installs | ❌ | ✅ | ✅ | ✅ |
-| GPU detection | ❌ | ❌ | ❌ | ✅ |
-| Correct PyTorch | ❌ | ❌ | ❌ | ✅ |
-| Install manifest | ❌ | ❌ | ❌ | ✅ |
-| Restore point | ❌ | ❌ | ❌ | ✅ |
-| Profile system | ❌ | ❌ | Partial | ✅ multi-select |
-| Custom checkboxes | ❌ | ❌ | ❌ | ✅ |
-| Post-install report | ❌ | ❌ | ❌ | ✅ |
-| Dotfile seeding | ❌ | ❌ | ❌ | ✅ |
-| Path Auditor | ❌ | ❌ | ❌ | ✅ |
-| Disposable Workspace | ❌ | ❌ | ❌ | ✅ (opt-in) |
-| WSL seeding | ❌ | ❌ | ❌ | ✅ (toggle) |
-| Hardware/Robotics profile | ❌ | ❌ | ❌ | ✅ |
+| Feature | Winget | Dev Home | **AM-DevKit** |
+|---|---|---|---|
+| Bloat removal | ❌ | ❌ | ✅ (native PS) |
+| App installs | ✅ | ✅ | ✅ |
+| GPU detection | ❌ | ❌ | ✅ |
+| Correct PyTorch | ❌ | ❌ | ✅ |
+| Install manifest | ❌ | ❌ | ✅ |
+| Restore point | ❌ | ❌ | ✅ |
+| Profile system | ❌ | Partial | ✅ multi-select |
+| Custom checkboxes | ❌ | ❌ | ✅ |
+| Post-install report | ❌ | ❌ | ✅ |
+| Dotfile seeding | ❌ | ❌ | ✅ |
+| Path Auditor | ❌ | ❌ | ✅ |
+| Disposable Workspace | ❌ | ❌ | ✅ (opt-in) |
+| WSL seeding | ❌ | ❌ | ✅ (toggle) |
+| Hardware/Robotics profile | ❌ | ❌ | ✅ |
 
 ---
 
@@ -98,7 +98,7 @@ AM-DevKit is a standalone product under the Absentmind brand — not under AM St
        │
        ▼
 [Layer 1: Windows Sanitation]
-  → Invoke CTT WinUtil (unattended, AM config)
+  → Run scripts/sanitize.ps1 (native PS, no downloads)
        │
        ▼
 [Layer 2: Core Infrastructure]
@@ -170,7 +170,7 @@ Presented as the first UI decision. If enabled:
 
 ### Windows Sanitation Toggle
 
-Sanitation is on by default but **explicitly surfaced in the UI** — not silent. Before the install begins, the user sees what CTT WinUtil will do, organized by category, with the ability to toggle any category off.
+Sanitation is **off by default** and **explicitly surfaced in the UI** — not silent. Before the install begins, the user sees the preset name and tweak list, with the ability to switch presets or disable sanitation entirely.
 
 **Presented as:**
 ```
@@ -182,11 +182,9 @@ Windows Sanitation  [ON ▼]
   ☐ OneDrive removal      (optional — you decide)
 ```
 
-Toggling a category off removes it from the CTT config passed to WinUtil. The user isn't editing JSON — they're clicking checkboxes. The underlying config handles it.
+**Why this matters:** Without this, Layer 1 is a blind leap. The user hits Install, then watches things change on their machine with no prior agreement. That erodes trust at exactly the wrong moment — right before the impressive parts.
 
-**Why this matters:** Without this, Layer 1 is a blind leap. The user hits Install, then watches things disappear from their machine with no prior agreement. That erodes trust at exactly the wrong moment — right before the impressive parts.
-
-> *This runs Chris Titus Tech's WinUtil with our curated settings. Nothing here is required for AM-DevKit to work — you can turn it all off and still get a fully configured dev environment.*
+> *Native PowerShell — no external downloads. Nothing here is required for AM-DevKit to work — you can leave sanitation off and still get a fully configured dev environment.*
 
 ### Pre-Install Summary Screen
 
@@ -267,7 +265,7 @@ The litmus test for Core: *if you'd have to explain what it is to a developer, i
 | **System Restore Point** | Pre-flight safety net | Orchestration step, not an installed package |
 | **Path Auditor** | Runs post-install, flags conflicts | Orchestration step, not an installed package |
 
-> **Bloat removal (CTT WinUtil)** is opt-in, not Core. It runs as Layer 1 only when sanitation is enabled.
+> **Windows sanitization** is opt-in, not Core. It runs as Layer 1 only when `--run-sanitation` is enabled.
 > **Nerd Fonts** is not currently automated — Oh My Posh works without them (prompt degrades gracefully).
 
 *Python version management (pyenv-win), package tooling (uv, pipx), and virtual environments remain in Layer 4 — Core installs the runtime, Layer 4 installs the ecosystem.*
@@ -276,44 +274,32 @@ The litmus test for Core: *if you'd have to explain what it is to a developer, i
 
 ## Layer 1: Windows Sanitation
 
-**Method:** Invoke CTT WinUtil in unattended mode with a curated `am-devkit-winutil.json` config. We own the curated config — CTT handles the execution.
+**Method:** Run `scripts/sanitize.ps1` — a bundled native PowerShell script.
+No external downloads. No GUI. Streams output live to the terminal.
 
-```powershell
-# Invocation (internal, not user-facing)
-irm christitus.com/win | iex -Config "$PSScriptRoot\config\am-devkit-winutil.json" -Silent
-```
+Two presets, selected via `--sanitation-preset` or the GUI radio buttons:
 
-**Our CTT config covers:**
+**Minimal** (4 tweaks — always safe)
+- Disable telemetry (advertising ID, SIUF feedback, DiagTrack service)
+- Disable consumer features (suggested apps, Cortana cloud content)
+- Service cleanup (SvcHostSplitThreshold tuned to installed RAM; unnecessary services set to Manual/Disabled)
+- Disable WPBT execution (Wake Platform Binary Table)
 
-*Bloatware Removal*
-- Xbox Game Bar (unless Gaming profile)
-- Cortana
-- Teams (consumer)
-- OneDrive (optional — user prompted)
-- All preinstalled Store garbage (Candy Crush, etc.)
-- Tips, Get Started, Weather widget
-- All "suggested" apps
+**Standard** (13 tweaks — recommended for power users)
+- Everything in Minimal, plus:
+- Disable Activity History feed
+- Disable Explorer auto-discovery folder type cache
+- Disable Game DVR / Game Bar capture
+- Disable Location Services
+- Delete temporary files (%TEMP%, %SystemRoot%\Temp)
+- DISM component cleanup (`/StartComponentCleanup`)
+- Enable End Task on taskbar right-click
+- Create a system restore point
+- Disable PowerShell 7 telemetry (sets `POWERSHELL_TELEMETRY_OPTOUT=1` machine-wide)
 
-*Registry & Privacy Hardening*
-- Disable telemetry
-- Disable advertising ID
-- Disable feedback prompts
-- Disable background app data for non-essentials
-- Long path support enabled
-- Developer Mode enabled
-
-*Explorer & Shell Sanity*
-- Show file extensions by default
-- Show hidden files
-- Right-click → Open Terminal here
-- Disable Quick Access clutter
-
-*Performance Tweaks*
-- High performance power plan
-- Disable hibernation (SSD systems)
-- Disable fast startup
-- Disable mouse acceleration
-- Virtual memory tuning (based on detected RAM)
+The tweak ID lists are documented in `config/am-devkit-winutil.json` (Minimal) and
+`config/am-devkit-winutil-standard.json` (Standard). The implementation lives in
+`scripts/sanitize.ps1` — edit there to add or remove tweaks.
 
 ---
 
@@ -868,7 +854,7 @@ absentmind-devkit/
 ├── core/
 │   ├── preflight.py            ← Pre-flight: restore point + Absentmind Mode toggle
 │   ├── system_scan.py          ← Layer 0: hardware detection
-│   ├── sanitize.py             ← Layer 1: calls CTT WinUtil
+│   ├── sanitize.py             ← Layer 1: runs scripts/sanitize.ps1 (native PS)
 │   ├── infrastructure.py       ← Layer 2: git, terminal, ssh, tailscale
 │   ├── editors.py              ← Layer 3: VS Code, Cursor, extensions
 │   ├── languages.py            ← Layer 4: Python ecosystem, Node, Rust
@@ -879,7 +865,7 @@ absentmind-devkit/
 │   └── sandbox.py              ← Layer 8.5: Disposable Workspace config
 │
 ├── config/
-│   ├── am-devkit-winutil.json  ← Curated CTT WinUtil config (conservative preset)
+│   ├── am-devkit-winutil.json  ← Sanitization tweak list: Minimal preset (documentation)
 │   ├── profiles/
 │   │   ├── ai-ml.toml
 │   │   ├── web-fullstack.toml
@@ -936,7 +922,7 @@ absentmind-devkit/
 
 ### Phase 2 — Core Installer ✅
 - [x] All layers functional (CLI mode)
-- [x] CTT WinUtil integration with AM config
+- [x] Native PowerShell sanitization (scripts/sanitize.ps1, Minimal/Standard presets)
 - [x] Manifest generation
 - [x] Post-install report (HTML)
 
@@ -983,7 +969,7 @@ absentmind-devkit/
 - PowerToys is genuinely table-stakes for power users but not universal enough for Core — moved to Extras ✅
 - Obsidian moved to Extras — personal preference, not dev stack ✅
 - Python moved to Core — nearly every profile touched it anyway, makes no sense as profile-only ✅
-- Investigate whether CTT WinUtil has a stable unattended API or if we need to pin a specific release
+- ~~Investigate CTT WinUtil headless API~~ — resolved: replaced with native PowerShell sanitization
 - `uv` is moving fast — may partially replace `pyenv-win` + `pipx` + `pip` by release time. Monitor
 - Consider a `--dry-run` flag that shows what would be installed without doing it (great for demos)
 - The post-install HTML report could be genuinely shareable / impressive. Make it look good.

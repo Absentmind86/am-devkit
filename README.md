@@ -20,7 +20,7 @@ AM-DevKit is a **Windows developer toolkit installer**. It is not a package mana
 
 Think of it as **Norton Ghost for your dev stack** — one run produces a documented, reproducible environment and a restore script you can replay on any future machine. It detects your hardware, makes smart decisions, and leaves a manifest of everything it did.
 
-Optional Windows sanitation (via CTT WinUtil) is available but off by default — the installer works perfectly without it.
+Optional Windows sanitation (native PowerShell — privacy and performance tweaks) is available but off by default — the installer works perfectly without it.
 
 No other installer does all of this. Most handle apps *or* the OS — never both. None detect your GPU and install the correct ML stack automatically. Nobody ships a recoverable manifest.
 
@@ -41,7 +41,7 @@ Choose your profiles (or hit Absentmind Mode and walk away)
 Core installs: Git, VS Code, Python, Terminal, Scoop, 7-Zip + modern CLI suite
        │
        ▼
-[Optional] Windows sanitation via CTT WinUtil — off by default, fully toggleable
+[Optional] Windows sanitization (native PS — privacy + performance tweaks) — off by default, fully toggleable
        │
        ▼
 Your selected profiles install in order
@@ -89,7 +89,7 @@ Select one or more. They stack. Each has an info button that shows exactly what 
 | System Restore Point (automatic, before anything runs) | ❌ | ❌ | ❌ | ✅ |
 | Optional Windows sanitation | ❌ | ❌ | ❌ | ✅ opt-in |
 
-> **On CTT WinUtil:** AM-DevKit uses [CTT WinUtil](https://github.com/ChrisTitusTech/winutil) under the hood for its optional Windows sanitation step — specifically its WPFTweaks automation layer for privacy and performance settings. CTT WinUtil is an excellent general-purpose Windows tool that also does app installs; we use it as a focused sanitation engine, not as a replacement for our installer.
+> **On Windows sanitization:** The optional sanitation step runs a bundled PowerShell script (`scripts/sanitize.ps1`) that applies a curated set of privacy and performance registry/service tweaks — no external downloads, no GUI, fully auditable in the repo.
 
 ---
 
@@ -154,7 +154,7 @@ Not dev stack. Presented separately after profile selection.
 ## Safety First
 
 - **System Restore Point** is forced before anything touches your machine. No opt-out.
-- **Sanitation is preset-level toggleable** — choose between Minimal (light privacy cleanup) or Standard (full privacy + performance tuning) before anything runs. The preset can be disabled entirely. *(This runs Chris Titus Tech's WinUtil with our curated preset. Nothing in sanitation is required for AM-DevKit to work.)*
+- **Sanitation is preset-level toggleable** — choose between Minimal (light privacy cleanup) or Standard (full privacy + performance tuning) before anything runs. The preset can be disabled entirely. *(Native PowerShell — no external downloads. Nothing in sanitation is required for AM-DevKit to work.)*
 - **Pre-Install Summary** shows tool count, estimated time, and estimated disk usage before you commit.
 - **Layer 8.5: Disposable Workspace** (opt-in) — configure Windows Sandbox or a Dev Container for testing experimental code without touching your host OS.
 
@@ -235,7 +235,7 @@ Get-ChildItem -Recurse -Filter *.ps1 | Unblock-File
 
 - **Phase 0** ✅ — Vision, architecture, full specification
 - **Phase 1** ✅ — Proof of concept: system scan, GPU detection, PowerShell bootstrap
-- **Phase 2** ✅ — Full layer stack (CLI), CTT integration, manifest + HTML report
+- **Phase 2** ✅ — Full layer stack (CLI), native sanitization, manifest + HTML report
 - **Phase 3** ✅ — Flet GUI, catalog exclusions, dotfile / vault / restore wiring
 - **Phase 4** 🔄 — Release: VM testing ([docs/RELEASE_TESTING.md](docs/RELEASE_TESTING.md)), SmartScreen docs, distribution (Azure Trusted Signing planned for v1.0), launch
 
@@ -251,9 +251,9 @@ AM-DevKit is a project under the **Absentmind** brand — built by someone who g
 
 This project is released under the **[MIT License](LICENSE)**.
 
-AM-DevKit **does not bundle** Chris Titus Tech WinUtil or Winget-packaged apps in the repository; it **downloads or invokes** them at install time. Python UI/runtime dependencies (**rich**, **flet**) come from PyPI under their own licenses.
+AM-DevKit **does not bundle** Winget-packaged apps in the repository; it invokes Winget/Scoop/rustup at install time. Python UI/runtime dependencies (**rich**, **flet**) come from PyPI under their own licenses.
 
-See **[docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)** for attribution, WinUtil (MIT), Microsoft Winget expectations, ML/CUDA disclaimers, and contributor guidance when adding dependencies.
+See **[docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)** for attribution, Microsoft Winget expectations, ML/CUDA disclaimers, and contributor guidance when adding dependencies.
 
 ---
 
@@ -274,8 +274,8 @@ This is a first-time WSL enable that requires a reboot. The installer detects ex
 **Python not found after install**
 Run `Update-ProcessPathFromMachine` in a new PowerShell window (this function is in `bootstrap/install.ps1`) or simply open a fresh terminal — Python's installer registers its PATH entry in the Machine scope, which the current session may not yet see.
 
-**WinUtil pin is outdated**
-The bump playbook is in the docstring of [`core/winutil_pin.py`](core/winutil_pin.py): download the new release, compute `Get-FileHash -Algorithm SHA256`, update `WINUTIL_TAG` + both SHA256 constants, test on a VM, open a PR.
+**Sanitization fails or applies unexpected tweaks**
+The tweak list for each preset is documented in `config/am-devkit-winutil.json` (Minimal) and `config/am-devkit-winutil-standard.json` (Standard). The implementation is in `scripts/sanitize.ps1`. To adjust what runs, edit the PS1 directly — no external download or hash update required.
 
 ---
 

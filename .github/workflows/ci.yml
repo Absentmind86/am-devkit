@@ -56,7 +56,6 @@ jobs:
             core/system_scan.py `
             core/utilities.py `
             core/winget_util.py `
-            core/winutil_pin.py `
             core/winutil_presets.py `
             scripts/gpu_detect.py `
             scripts/path_auditor.py
