@@ -22,7 +22,8 @@ Take a VM snapshot before every destructive section so you can reset cleanly bet
 
 From repo root:
 
-- [ ] `python -m pytest tests/ -v` — all 90 tests pass, 0 failures
+- [ ] `python -m pytest tests/ -v` — all tests pass, 0 failures
+      *(run `python -m pytest tests/ --co -q | tail -1` to confirm current count before tagging)*
 - [ ] `python -m ruff check core/ scripts/ tests/` — no errors
 - [ ] `python -m py_compile` passes for all non-flet modules:
       ```powershell
@@ -30,7 +31,8 @@ From repo root:
         ForEach-Object { python -m py_compile $_.FullName }
       ```
 - [ ] `cat VERSION` matches the expected release string (e.g. `0.8.0-phase4`)
-- [ ] `python scripts/test_gpu_pytorch_matrix.py` — all 51 GPU/PyTorch path scenarios pass (exit 0)
+- [ ] `python scripts/test_gpu_pytorch_matrix.py` — all GPU/PyTorch path scenarios pass (exit 0)
+      *(confirm scenario count matches the "X/X matched" line in output)*
 
 ---
 
@@ -66,7 +68,9 @@ From repo root:
 - [ ] `python -m core.installer --dry-run --reuse-system-profile system-profile.json --profile systems --skip-summary`
       exits 0 when `system-profile.json` exists from step 4
 - [ ] `python -m core.installer --dry-run --run-sanitation --sanitation-preset minimal --profile systems --skip-summary`
-      exits 0; pre-install summary shows WinUtil tweak list (4 tweaks for minimal preset)
+      exits 0; pre-install summary shows tweak list (4 tweaks for Minimal preset)
+- [ ] Re-run same command a second time after a real (non-dry) install has written a manifest —
+      sanitize layer should print `[skipped] sanitization already applied in a prior run`
 
 ---
 
@@ -79,7 +83,9 @@ From repo root:
 - [ ] **Profiles & Options tab:** all 5 profile checkboxes toggle; Absentmind Mode
       selects all; PyTorch toggle only appears when AI/ML is checked;
       sanitation preset radio (Minimal / Standard) toggles correctly;
-      WSL switch shows reboot caveat tooltip
+      WSL switch shows reboot caveat tooltip;
+      "Restore Windows defaults" button is always visible and launches a new
+      PowerShell console when clicked (approve UAC prompt)
 - [ ] **Custom Exclusions tab:** typing a tool ID adds it to the exclusion list;
       preview field updates
 - [ ] **Results tab:** "Refresh results" loads the dry-run manifest from step 5;
@@ -131,9 +137,11 @@ Run interactively (without `--skip-summary`) and verify:
 
 ### 8d. Sanitation (most destructive — separate disposable VM)
 - [ ] `python -m core.installer --run-sanitation --sanitation-preset minimal --yes --skip-summary`
-- [ ] WinUtil downloads (or uses pinned release), SHA256 verified in console output
-- [ ] WinUtil applies tweaks; no uncaught exception
+- [ ] Native `scripts/sanitize.ps1` runs (no external download); tweak steps stream to console; no uncaught exception
+- [ ] Final line reads `Sanitization complete. (Minimal preset - no errors)` with exit 0
 - [ ] VM remains usable after sanitation (can still open Start menu, Settings, Edge)
+- [ ] Re-running the installer with `--run-sanitation` on the same VM prints `[skipped] sanitization already applied`
+- [ ] `scripts/sanitize-restore.ps1` runs without error; services and registry keys restored
 
 ---
 
@@ -178,11 +186,15 @@ Re-run sections 4–6 (non-destructive) after any change to:
 |---|---|
 | `core/installer.py` layer order or `InstallContext` fields | 4, 5, 6 |
 | `core/install_catalog.py` / `core/catalog_install.py` | 3, 5 |
-| `core/sanitize.py` or WinUtil JSON presets | 5 (sanitation item), 7, 8d |
+| `core/sanitize.py` or `scripts/sanitize.ps1` / `sanitize-restore.ps1` | 5 (sanitation items), 7, 8d |
 | `bootstrap/install.ps1` or `bootstrap/fresh.ps1` | 9 |
 | `core/gui.py` | 6 |
 | `core/pre_install_summary.py` | 7 |
 | `core/system_scan.py` | 4 |
+| `core/ml_stack.py` | 5 (ai-ml dry-run), 8c |
+| `core/pwsh_util.py` (scoop/wsl helpers) | 5, 8a |
+| `core/pyenv_scoop.py` or `core/install_catalog.py` detectors | 3, 5 |
+| `core/devops.py` | 5, 8a |
 | `VERSION` | verify `cat VERSION` in section 2 |
 
 ---
