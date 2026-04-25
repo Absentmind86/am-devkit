@@ -1,4 +1,4 @@
-# Absentmind's DevKit
+# Absentmind DevKit
 ### Master Project Document — v0.3
 **Brand:** Absentmind (Umbrella)
 **Short Name:** AM-DevKit
@@ -23,7 +23,7 @@
 
 > *"You just got a new machine. Run one thing. Walk away. Come back to a fully configured, GPU-intelligent, bloat-free development environment — personalized to your stack, documented, and reproducible."*
 
-No tool currently does this completely. Most installers either handle apps OR the OS — never both. None detect GPU hardware and install the correct ML stack automatically. Nobody ships a recoverable manifest. Absentmind's DevKit fills that gap.
+No tool currently does this completely. Most installers either handle apps OR the OS — never both. None detect GPU hardware and install the correct ML stack automatically. Nobody ships a recoverable manifest. Absentmind DevKit fills that gap.
 
 ---
 
@@ -31,7 +31,7 @@ No tool currently does this completely. Most installers either handle apps OR th
 
 ```
 Absentmind (Brand Umbrella)
-├── Absentmind's DevKit        ← This project (AM-DevKit)
+├── Absentmind DevKit        ← This project (AM-DevKit)
 ├── AM Studio                  ← Separate product umbrella
 │   └── AM Pixel               ← SNES-era AI sprite generator
 ├── Kyle's Quest               ← Text RPG
@@ -40,7 +40,7 @@ Absentmind (Brand Umbrella)
 └── RV EZ FIX LLC              ← Active repair business
 ```
 
-AM-DevKit is a standalone product under the Absentmind brand — not under AM Studio. The "AM-DevKit" shorthand is expected to emerge organically. The full name **Absentmind's DevKit** is the canonical name and should be used in all official contexts to build brand recognition.
+AM-DevKit is a standalone product under the Absentmind brand — not under AM Studio. The "AM-DevKit" shorthand is expected to emerge organically. The full name **Absentmind DevKit** is the canonical name and should be used in all official contexts to build brand recognition.
 
 ---
 
@@ -911,8 +911,8 @@ absentmind-devkit/
 - [x] Core/Profile/Extras architecture decided ✅
 - [x] Hardware/Robotics profile scoped ✅
 - [x] Absentmind Mode definition locked ✅
-- [x] Name locked: **Absentmind's DevKit**
-- [x] Create GitHub repo — [Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
+- [x] Name locked: **Absentmind DevKit**
+- [x] Create GitHub repo — [Absentmind86/am-devkit](https://github.com/Absentmind86/am-devkit)
 
 ### Phase 1 — Proof of Concept ✅
 - [x] Layer 0: System scan script (Python + WMI)
@@ -943,7 +943,7 @@ absentmind-devkit/
       windows-latest, Python 3.11 / 3.12 / 3.13 — py_compile + ruff + pytest
 - [x] `pyproject.toml` — pytest + ruff lint config
 - [ ] Testing on clean Windows installs — see `docs/RELEASE_TESTING.md`
-- [x] README install / clone URLs — [Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
+- [x] README install / clone URLs — [Absentmind86/am-devkit](https://github.com/Absentmind86/am-devkit)
 - [ ] Documentation polish (ongoing)
 - [ ] GitHub release with signed `.exe` or `.ps1`
 

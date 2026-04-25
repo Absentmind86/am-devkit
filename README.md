@@ -1,14 +1,13 @@
 <div align="center">
 
-# Absentmind's DevKit
+# Absentmind DevKit
 
 ### *You just got a new machine. Run one thing. Walk away.*
 ### *Come back to a fully configured, GPU-intelligent development environment.*
 
-[![CI](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/ci.yml/badge.svg)](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/ci.yml)
-[![Checksums](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/update-checksums.yml/badge.svg)](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/update-checksums.yml)
+[![CI](https://github.com/Absentmind86/am-devkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Absentmind86/am-devkit/actions/workflows/ci.yml)
+[![Checksums](https://github.com/Absentmind86/am-devkit/actions/workflows/update-checksums.yml/badge.svg)](https://github.com/Absentmind86/am-devkit/actions/workflows/update-checksums.yml)
 [![Status](https://img.shields.io/badge/status-pre--release-orange)]()
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 [![Made by](https://img.shields.io/badge/made%20by-Absentmind-purple)]()
 
@@ -16,9 +15,19 @@
 
 ---
 
+## Platform Support
+
+| Platform | Status |
+| --- | --- |
+| Windows 10/11 | ✅ Live |
+| Linux | ⚠️ In Development |
+| macOS | ⚠️ In Development |
+
+---
+
 ## What Is This?
 
-AM-DevKit is a **Windows developer toolkit installer**. It is not a package manager. It is not a dotfile manager. It is not a debloater.
+AM-DevKit is a **developer toolkit installer** — currently Windows-only, with cross-platform support planned. It is not a package manager. It is not a dotfile manager. It is not a debloater.
 
 Think of it as **Norton Ghost for your dev stack** — one run produces a documented, reproducible environment and a restore script you can replay on any future machine. It detects your hardware, makes smart decisions, and leaves a manifest of everything it did.
 
@@ -175,22 +184,22 @@ Administrator privileges required for sanitation and system-level installs.
 
 ## Installation
 
-**Repository:** [github.com/Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
+**Repository:** [github.com/Absentmind86/am-devkit](https://github.com/Absentmind86/am-devkit)
 
 > ⚠️ **Pre-release.** Review `bootstrap/install.ps1` before you run it. The default action is a Layer 0 system scan only; use `-Gui` or `-FullInstall` for more (see script comment help).
 
 **Fresh-machine one-liner** (installs git if missing, clones the repo, opens the GUI):
 
 ```powershell
-irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1 | iex
+irm https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/fresh.ps1 | iex
 ```
 
-This is the quickest entry point. It clones the repo to `%USERPROFILE%\Absentminds-DevKit-Windows` and launches the Phase 3 GUI. Re-running it updates the local clone and re-opens the GUI.
+This is the quickest entry point. It clones the repo to `%USERPROFILE%\am-devkit` and launches the Phase 3 GUI. Re-running it updates the local clone and re-opens the GUI.
 
 **Verified install** (downloads to file, shows SHA256, asks before running — recommended if you want proof of integrity):
 
 ```powershell
-irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/Verify-Bootstrap.ps1 | iex
+irm https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/Verify-Bootstrap.ps1 | iex
 ```
 
 This fetches `fresh.ps1` to a temp file, computes its SHA256, compares it against the published hash in [`bootstrap/CHECKSUMS.sha256`](bootstrap/CHECKSUMS.sha256), and only proceeds with your explicit `Y`. The checksum file is automatically updated by CI on every push that changes `fresh.ps1`.
@@ -198,14 +207,14 @@ This fetches `fresh.ps1` to a temp file, computes its SHA256, compares it agains
 **Clone then run** (recommended if you want to read everything first):
 
 ```powershell
-git clone https://github.com/Absentmind86/Absentminds-DevKit-Windows.git
-cd Absentminds-DevKit-Windows
+git clone https://github.com/Absentmind86/am-devkit.git
+cd am-devkit
 .\bootstrap\install.ps1          # Layer 0 scan → system-profile.json
 # .\bootstrap\install.ps1 -Gui   # Flet launcher
 # .\bootstrap\install.ps1 -FullInstall -DryRun
 ```
 
-Watch [the GitHub repository](https://github.com/Absentmind86/Absentminds-DevKit-Windows) for updates.
+Watch [the GitHub repository](https://github.com/Absentmind86/am-devkit) for updates.
 
 ### SmartScreen / execution policy notes
 
@@ -220,7 +229,7 @@ Get-ChildItem -Recurse -Filter *.ps1 | Unblock-File
 
 `git clone` does not attach a zone tag, so cloning from the command line (as shown above) does not require this step.
 
-**Scripts are not code-signed in v0.8.** The `.ps1` files can be read in full at [github.com/Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows) before you run them. Code signing via Azure Trusted Signing is planned for v1.0.
+**Scripts are not code-signed in v0.8.** The `.ps1` files can be read in full at [github.com/Absentmind86/am-devkit](https://github.com/Absentmind86/am-devkit) before you run them. Code signing via Azure Trusted Signing is planned for v1.0.
 
 ---
 

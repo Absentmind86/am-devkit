@@ -7,7 +7,7 @@
 
 ## What This Project Is
 
-**Absentmind's DevKit (AM-DevKit)** is a Windows developer environment bootstrapper.
+**Absentmind DevKit (AM-DevKit)** is a developer environment bootstrapper. Currently Windows-only; cross-platform support (Linux, macOS) is in development.
 
 One command. Walk away. Come back to a fully configured, GPU-intelligent dev environment.
 

@@ -11,8 +11,8 @@ Take a VM snapshot before every destructive section so you can reset cleanly bet
 ## 1. Environment
 
 - [ ] Fresh Windows 11 (or Windows 10 build 1903+) VM, current patches, local admin
-- [ ] Repo cloned to a short path — e.g. `C:\src\Absentminds-DevKit-Windows`
-      from [github.com/Absentmind86/Absentminds-DevKit-Windows](https://github.com/Absentmind86/Absentminds-DevKit-Windows)
+- [ ] Repo cloned to a short path — e.g. `C:\src\am-devkit`
+      from [github.com/Absentmind86/am-devkit](https://github.com/Absentmind86/am-devkit)
 - [ ] Python 3.11+ available, or run `bootstrap/install.ps1` to bootstrap it
 - [ ] `pip install -r requirements.txt` (rich + flet) for GUI tests
 
@@ -142,9 +142,9 @@ Run interactively (without `--skip-summary`) and verify:
 ### 9a. fresh.ps1 one-liner
 - [ ] On a VM with no repo, no Python: open PowerShell as Administrator and run:
       ```powershell
-      irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1 | iex
+      irm https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/fresh.ps1 | iex
       ```
-- [ ] Git installs (if absent), repo clones to `%USERPROFILE%\Absentminds-DevKit-Windows`,
+- [ ] Git installs (if absent), repo clones to `%USERPROFILE%\am-devkit`,
       Python installs, GUI opens — no unhandled errors
 
 ### 9b. install.ps1 entry points

@@ -145,7 +145,7 @@ def _seed_obsidian_vault(ctx: InstallContext, manifest: Manifest, console: Conso
     )
     readme = (
         "# AM-DevKit Vault\n\n"
-        "Starter folders seeded by Absentmind's DevKit. "
+        "Starter folders seeded by Absentmind DevKit. "
         "In Obsidian: **Open folder as vault** and choose this directory.\n"
     )
 
@@ -380,7 +380,7 @@ def build_post_install_html(
   </style>
 </head>
 <body>
-  <h1>Absentmind's DevKit — Post-install report</h1>
+  <h1>Absentmind DevKit — Post-install report</h1>
   <p>Version {_html_escape(ctx.devkit_version)} · Profiles: {_html_escape(profiles)}</p>
   <div class="banner {banner_class}">{_html_escape(banner_text)}</div>
 

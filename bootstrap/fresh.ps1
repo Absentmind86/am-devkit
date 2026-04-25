@@ -8,12 +8,12 @@
   to a local path, then hands off to bootstrap/install.ps1 inside the clone.
 
   Intended use:
-    irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1 | iex
+    irm https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/fresh.ps1 | iex
 
   After running, you will have the repo cloned at $InstallPath and the Phase 3 GUI open.
 
 .PARAMETER InstallPath
-  Where to clone the repo. Defaults to "$env:USERPROFILE\Absentminds-DevKit-Windows".
+  Where to clone the repo. Defaults to "$env:USERPROFILE\am-devkit".
 
 .PARAMETER Branch
   Git branch to clone. Defaults to 'main'.
@@ -29,7 +29,7 @@
 
 [CmdletBinding()]
 param(
-    [string] $InstallPath = (Join-Path $env:USERPROFILE 'Absentminds-DevKit-Windows'),
+    [string] $InstallPath = (Join-Path $env:USERPROFILE 'am-devkit'),
     [string] $Branch = 'main',
     [ValidateSet('Gui', 'Scan', 'Cli')]
     [string] $Mode = 'Gui',
@@ -37,7 +37,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$RepoUrl = 'https://github.com/Absentmind86/Absentminds-DevKit-Windows.git'
+$RepoUrl = 'https://github.com/Absentmind86/am-devkit.git'
 
 # Self-elevate: winget installs and system operations require Administrator.
 # If not already elevated, save this script to a temp file and re-launch it
@@ -48,12 +48,12 @@ if (-not $_isAdmin) {
     # If run via irm|iex, $PSCommandPath is empty — re-download to temp.
     $scriptFile = if ($PSCommandPath) { $PSCommandPath } else {
         $tmp = Join-Path $env:TEMP 'am-devkit-fresh.ps1'
-        Invoke-RestMethod 'https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/fresh.ps1' |
+        Invoke-RestMethod 'https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/fresh.ps1' |
             Out-File -FilePath $tmp -Encoding utf8 -Force
         $tmp
     }
     $argStr = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $scriptFile
-    if ($InstallPath -ne (Join-Path $env:USERPROFILE 'Absentminds-DevKit-Windows')) { $argStr += ' -InstallPath "{0}"' -f $InstallPath }
+    if ($InstallPath -ne (Join-Path $env:USERPROFILE 'am-devkit')) { $argStr += ' -InstallPath "{0}"' -f $InstallPath }
     if ($Branch -ne 'main')  { $argStr += ' -Branch "{0}"' -f $Branch }
     if ($Mode  -ne 'Gui')   { $argStr += ' -Mode {0}' -f $Mode }
     if ($Yes)               { $argStr += ' -Yes' }
@@ -84,7 +84,7 @@ function Update-ProcessPathFromMachine {
 }
 
 Write-Host ''
-Write-Host "Absentmind's DevKit — fresh machine bootstrap" -ForegroundColor Magenta
+Write-Host "Absentmind DevKit — fresh machine bootstrap" -ForegroundColor Magenta
 Write-Host "Target: $InstallPath (branch: $Branch, mode: $Mode)" -ForegroundColor DarkGray
 Write-Host ''
 

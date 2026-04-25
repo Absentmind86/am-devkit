@@ -1,6 +1,6 @@
 # Third-party notices and licensing
 
-Absentmind's DevKit **AM-DevKit** (`LICENSE` at repo root) is licensed under the **MIT License**. Copyright notices for this project appear in `LICENSE`.
+Absentmind DevKit **AM-DevKit** (`LICENSE` at repo root) is licensed under the **MIT License**. Copyright notices for this project appear in `LICENSE`.
 
 This document satisfies common expectations for attribution, describes **bundled versus runtime** dependencies, and states limitations of liability for third-party tools AM-DevKit **invokes but does not ship**.
 

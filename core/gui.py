@@ -324,7 +324,7 @@ def main_gui() -> None:
     installed_state: dict[str, bool] = {}
 
     def main(page: ft.Page) -> None:
-        page.title = "Absentmind's DevKit"
+        page.title = "Absentmind DevKit"
         page.theme_mode = ft.ThemeMode.DARK
         page.padding = 16
         page.window.width = 960
@@ -1419,7 +1419,7 @@ def main_gui() -> None:
             if len(failed) > 3:
                 title += f" (+{len(failed) - 3} more)"
 
-            base = "https://github.com/Absentmind86/Absentminds-DevKit-Windows/issues/new"
+            base = "https://github.com/Absentmind86/am-devkit/issues/new"
             return f"{base}?title={urllib.parse.quote(title)}&body={urllib.parse.quote(body)}"
 
         def _report_issue(_: ft.ControlEvent) -> None:
@@ -1546,7 +1546,7 @@ def main_gui() -> None:
         # ------------------------------------------------------------------
         page.add(
             ft.Column([
-                ft.Text("Absentmind's DevKit", size=22, weight=ft.FontWeight.BOLD),
+                ft.Text("Absentmind DevKit", size=22, weight=ft.FontWeight.BOLD),
                 ft.Text(
                     "Developer toolkit installer — pick profiles, customize tools, then START INSTALL.",
                     size=13,

@@ -27,11 +27,11 @@
 
 .EXAMPLE
     # Paste into an elevated PowerShell:
-    irm https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/Verify-Bootstrap.ps1 | iex
+    irm https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/Verify-Bootstrap.ps1 | iex
 
 .EXAMPLE
     # Or download this verifier itself first and read it:
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/main/bootstrap/Verify-Bootstrap.ps1" -OutFile "$env:TEMP\Verify-Bootstrap.ps1"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Absentmind86/am-devkit/main/bootstrap/Verify-Bootstrap.ps1" -OutFile "$env:TEMP\Verify-Bootstrap.ps1"
     notepad "$env:TEMP\Verify-Bootstrap.ps1"
     # Then: & "$env:TEMP\Verify-Bootstrap.ps1"
 
@@ -48,7 +48,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$BaseUrl     = "https://raw.githubusercontent.com/Absentmind86/Absentminds-DevKit-Windows/$Branch/bootstrap"
+$BaseUrl     = "https://raw.githubusercontent.com/Absentmind86/am-devkit/$Branch/bootstrap"
 $ScriptUrl   = "$BaseUrl/fresh.ps1"
 $ChecksumUrl = "$BaseUrl/CHECKSUMS.sha256"
 
