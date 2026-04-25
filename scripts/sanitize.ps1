@@ -18,6 +18,8 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+$script:ErrCount = 0
+
 function Set-Reg {
     param(
         [string]$Path,
@@ -25,20 +27,30 @@ function Set-Reg {
         $Value,
         [string]$Type = 'DWord'
     )
-    if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
-    Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
-    Write-Host "  [reg] $Name = $Value  ($Path)"
+    try {
+        if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
+        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
+        Write-Host "  [reg] $Name = $Value  ($Path)"
+    } catch {
+        $script:ErrCount++
+        Write-Host "  [warn] reg $Name failed: $_" -ForegroundColor Yellow
+    }
 }
 
 function Set-Svc {
     param([string]$Name, [string]$Startup)
     $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
     if ($null -eq $svc) { Write-Host "  [svc] $Name - not found, skipping"; return }
-    Set-Service -Name $Name -StartupType $Startup -ErrorAction Continue
-    if ($Startup -eq 'Disabled') {
-        Stop-Service -Name $Name -Force -ErrorAction SilentlyContinue
+    try {
+        Set-Service -Name $Name -StartupType $Startup -ErrorAction Stop
+        if ($Startup -eq 'Disabled') {
+            Stop-Service -Name $Name -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "  [svc] $Name -> $Startup"
+    } catch {
+        $script:ErrCount++
+        Write-Host "  [warn] svc $Name failed: $_" -ForegroundColor Yellow
     }
-    Write-Host "  [svc] $Name -> $Startup"
 }
 
 Write-Host ''
@@ -156,5 +168,10 @@ if ($Preset -eq 'Standard') {
 }
 
 Write-Host ''
-Write-Host 'Sanitization complete.' -ForegroundColor Green
-exit 0
+if ($script:ErrCount -eq 0) {
+    Write-Host "Sanitization complete. ($Preset preset — no errors)" -ForegroundColor Green
+    exit 0
+} else {
+    Write-Host "Sanitization finished with $($script:ErrCount) warning(s). Check output above." -ForegroundColor Yellow
+    exit 1
+}
