@@ -555,7 +555,7 @@ def main_gui() -> None:
             )
 
         def open_sanitation_info(_e: ft.ControlEvent | None = None) -> None:
-            from core.winutil_presets import TWEAK_LABELS, PRESET_TWEAKS
+            from core.winutil_presets import PRESET_TWEAKS, TWEAK_LABELS
             dlg_title.value = "Sanitization tweaks"
             dlg_body.controls.clear()
 

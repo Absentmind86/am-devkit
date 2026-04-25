@@ -17,33 +17,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Use a PAT or the default GITHUB_TOKEN — token write permission
-          # is granted by the permissions block above.
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute SHA256 of fresh.ps1
-        id: hash
+      - name: Compute SHA256 and write CHECKSUMS.sha256
         shell: pwsh
         run: |
-          $hash = (Get-FileHash bootstrap/fresh.ps1 -Algorithm SHA256).Hash
+          $hash = (Get-FileHash bootstrap/fresh.ps1 -Algorithm SHA256).Hash.ToUpper()
           Write-Host "Hash: $hash"
-          echo "hash=$hash" >> $env:GITHUB_OUTPUT
-
-      - name: Write CHECKSUMS.sha256
-        shell: pwsh
-        run: |
-          $hash = "${{ steps.hash.outputs.hash }}"
-          $date = Get-Date -Format 'yyyy-MM-dd'
-          $content = @"
-# AM-DevKit bootstrap script checksums (SHA256)
-# Updated on every push that modifies bootstrap/fresh.ps1
-# Verify with: Get-FileHash fresh.ps1 -Algorithm SHA256
-#
-# Format: HASH  filename  (compatible with sha256sum -c)
-
-$hash  fresh.ps1
-"@
-          Set-Content -Path bootstrap/CHECKSUMS.sha256 -Value $content -Encoding utf8NoBOM
+          $lines = @(
+            '# AM-DevKit bootstrap script checksums (SHA256)',
+            '# Updated automatically by CI on every push that modifies bootstrap/fresh.ps1',
+            '# Verify with: Get-FileHash fresh.ps1 -Algorithm SHA256',
+            '#',
+            '# Format: HASH  filename  (compatible with sha256sum -c)',
+            '',
+            "$hash  fresh.ps1"
+          )
+          Set-Content -Path bootstrap/CHECKSUMS.sha256 -Value ($lines -join "`n") -Encoding utf8NoBOM
           Write-Host "Written: $hash  fresh.ps1"
 
       - name: Commit updated checksums
@@ -52,9 +42,10 @@ $hash  fresh.ps1
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add bootstrap/CHECKSUMS.sha256
-          if ((git status --porcelain).Length -gt 0) {
+          $status = git status --porcelain
+          if ($status) {
             git commit -m "ci: update CHECKSUMS.sha256 for fresh.ps1 [skip ci]"
             git push
           } else {
-            Write-Host "No checksum change — nothing to commit."
+            Write-Host "No checksum change - nothing to commit."
           }

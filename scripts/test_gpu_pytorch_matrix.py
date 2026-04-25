@@ -25,7 +25,7 @@ import argparse
 import json
 import sys
 from contextlib import ExitStack
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
@@ -33,7 +33,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.gpu_detect import VideoAdapter, detect_gpu_for_pytorch  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Scenario definitions
@@ -303,7 +302,7 @@ def _shorten(warnings: list[str], max_chars: int = 80) -> str:
 
 
 def print_plain(rows: list[dict], scenarios: list[Scenario]) -> None:
-    for i, (s, r) in enumerate(zip(scenarios, rows), 1):
+    for i, (s, r) in enumerate(zip(scenarios, rows, strict=True), 1):
         ok = "PASS" if r["match"] else "FAIL MISMATCH"
         print(f"\n[{i:02d}] {s.name}")
         print(f"     {ok}  path={r['actual_path']}  expected={r['expected_path']}")
@@ -320,7 +319,7 @@ def print_markdown(rows: list[dict], scenarios: list[Scenario]) -> None:
     cols = ["#", "Scenario", "Expected", "Actual", "Match", "CUDA Tag", "1st Warning"]
     print("| " + " | ".join(cols) + " |")
     print("| " + " | ".join(["---"] * len(cols)) + " |")
-    for i, (s, r) in enumerate(zip(scenarios, rows), 1):
+    for i, (s, r) in enumerate(zip(scenarios, rows, strict=True), 1):
         row = [
             str(i),
             s.name,
@@ -335,7 +334,7 @@ def print_markdown(rows: list[dict], scenarios: list[Scenario]) -> None:
 
 def print_json(rows: list[dict], scenarios: list[Scenario]) -> None:
     out = []
-    for i, (s, r) in enumerate(zip(scenarios, rows), 1):
+    for i, (s, r) in enumerate(zip(scenarios, rows, strict=True), 1):
         out.append({"n": i, "scenario": s.name, **r})
     json.dump(out, sys.stdout, indent=2)
     sys.stdout.write("\n")
