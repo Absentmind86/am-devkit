@@ -30,6 +30,7 @@ From repo root:
         ForEach-Object { python -m py_compile $_.FullName }
       ```
 - [ ] `cat VERSION` matches the expected release string (e.g. `0.8.0-phase4`)
+- [ ] `python scripts/test_gpu_pytorch_matrix.py` — all 51 GPU/PyTorch path scenarios pass (exit 0)
 
 ---
 

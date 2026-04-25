@@ -27,6 +27,11 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 - **`scripts/smoke-test-winget-ids.py`** — validates every `WINGET_CATALOG`
   entry via `winget show --id --exact`. Accepts `--layer` and `--timeout` flags.
   Run before release or when catalog IDs change.
+- **`scripts/test_gpu_pytorch_matrix.py`** — 51-scenario GPU/PyTorch path
+  selection matrix. Covers NVIDIA (CUDA 10.1–13.0), AMD discrete/iGPU,
+  Intel, VM adapters, headless, Optimus, broken smi, and more. Exit 0 = all
+  expected paths matched. Outputs plain text (default), `--markdown`, or
+  `--json`. Added to static check list in `docs/RELEASE_TESTING.md`.
 - **`scripts/sanitize.ps1`** added to `scripts/` alongside existing
   `gpu_detect.py`, `path_auditor.py`, `scan-all-tools.py`, `verify-install.py`.
 - **`VERSION` file** at repo root — single-source version string. Read by

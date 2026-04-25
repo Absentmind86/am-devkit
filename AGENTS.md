@@ -130,6 +130,7 @@ absentmind-devkit/
 │   ├── scan-all-tools.py           ← Standalone tool presence scanner
 │   ├── sanitize.ps1                ← Native sanitization script (no downloads; Minimal/Standard)
 │   ├── smoke-test-winget-ids.py    ← Validates every WINGET_CATALOG ID via winget show --exact
+│   ├── test_gpu_pytorch_matrix.py  ← 51-scenario GPU/PyTorch path selection matrix; exit 0 = all pass
 │   └── verify-install.py           ← Post-install verification against catalog
 │
 ├── tests/
