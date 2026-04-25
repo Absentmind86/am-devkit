@@ -1,260 +1,315 @@
 #!/usr/bin/env python3
-"""Comprehensive install verification: compare manifest against actual system state.
+"""Post-install verification: check every manifest tool against the actual system state.
 
-Checks:
-- What the manifest says should be installed vs. what's actually on disk
-- Deep version checks (PyTorch GPU support, pip package versions, etc.)
-- Missing tools, failed installs, and unexpected state
-- GPU detection for ML stack
+Uses the same detector logic as the installer for catalog tools.
+Non-catalog tools (scoop, pip, rustup, pyenv, etc.) have explicit detectors here.
 """
 
+from __future__ import annotations
+
+import importlib.metadata
 import json
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-
-# Import catalog
 sys.path.insert(0, str(_REPO_ROOT))
-from core.install_catalog import TOOL_DISK_MB, WINGET_CATALOG, get_detector
+
+from core.install_catalog import WINGET_CATALOG, get_detector  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _which(exe: str) -> bool:
+    return shutil.which(exe) is not None
 
 
-def _check_tool_via_detector(entry: Any) -> bool:
-    """Use the same detector logic as the installer."""
+def _file(*paths: str | Path) -> bool:
+    return any(Path(p).is_file() for p in paths)
+
+
+def _dir(*paths: str | Path) -> bool:
+    return any(Path(p).is_dir() for p in paths)
+
+
+def _pip_pkg(name: str) -> str | None:
     try:
-        detector = get_detector(entry)
-        return detector()
-    except Exception:
-        return False
-
-
-def _get_python_package_version(pkg: str) -> str | None:
-    """Get installed version of a Python package."""
-    try:
-        import importlib.metadata
-        return importlib.metadata.version(pkg)
+        return importlib.metadata.version(name)
     except Exception:
         return None
 
 
-def _detect_gpu() -> str:
-    """Detect GPU type (NVIDIA, AMD, or CPU-only)."""
+def _run(cmd: list[str], timeout: int = 5) -> int:
     try:
-        # Check for NVIDIA
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            capture_output=True, text=True, timeout=5,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return f"NVIDIA: {result.stdout.strip().split()[0]}"
+        return subprocess.run(cmd, capture_output=True, timeout=timeout).returncode
     except Exception:
-        pass
+        return -1
 
-    try:
-        # Check for AMD
-        result = subprocess.run(
-            ["rocm-smi", "--showid"],
-            capture_output=True, text=True, timeout=5,
+
+# ---------------------------------------------------------------------------
+# Non-catalog tool detectors
+# Keyed by the tool name written to devkit-manifest.json
+# ---------------------------------------------------------------------------
+
+_LOC  = Path(os.environ.get("LOCALAPPDATA", ""))
+_PF   = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+_HOME = Path(os.environ.get("USERPROFILE", ""))
+
+
+def _detect_non_catalog(tool: str) -> bool | None:
+    """Return True/False for known non-catalog tools, None if unknown."""
+
+    # ── bootstrap / infrastructure ────────────────────────────────────────
+    if tool == "scoop":
+        return _which("scoop") or _file(_HOME / "scoop" / "shims" / "scoop.ps1")
+
+    if tool == "scoop-cli-bundle":
+        # All seven tools must be present
+        return all(_which(t) for t in ("bat", "rg", "fd", "fzf", "jq", "lazygit", "delta"))
+
+    if tool == "openssh-client":
+        return _which("ssh.exe") or _which("ssh")
+
+    if tool == "pyenv-win":
+        return (
+            _which("pyenv")
+            or _file(_HOME / ".pyenv" / "pyenv-win" / "bin" / "pyenv.bat")
         )
-        if result.returncode == 0 and result.stdout.strip():
-            return "AMD ROCm detected"
-    except Exception:
-        pass
 
-    return "CPU-only (no NVIDIA/AMD detected)"
+    if tool == "rustup-stable":
+        return _which("rustup") or _which("cargo")
+
+    # ── editors / extensions ──────────────────────────────────────────────
+    if tool in ("vscode-extensions", "cursor-extensions"):
+        ext_dir = _LOC / "Programs" / "Microsoft VS Code" / "resources" / "app" / "extensions"
+        cursor_ext = _LOC / "Programs" / "cursor" / "resources" / "app" / "extensions"
+        vscode_user_ext = _HOME / ".vscode" / "extensions"
+        cursor_user_ext = _HOME / ".cursor" / "extensions"
+        return _dir(ext_dir, cursor_ext, vscode_user_ext, cursor_user_ext)
+
+    # ── ML stack ─────────────────────────────────────────────────────────
+    if tool == "gpu-detect":
+        return True  # internal step, always runs
+
+    if tool in ("pytorch-pip", "pytorch-cuda", "pytorch-directml"):
+        try:
+            import torch  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    if tool == "pip-ml-base":
+        return all(
+            _pip_pkg(p) is not None
+            for p in ("numpy", "pandas", "matplotlib", "scikit-learn", "jupyter")
+        )
+
+    # ── sanitization ─────────────────────────────────────────────────────
+    if tool == "am-sanitize":
+        return _file(_REPO_ROOT / "scripts" / "sanitize.ps1")
+
+    # ── WSL ──────────────────────────────────────────────────────────────
+    if tool == "wsl-prereq":
+        return _which("wsl") or _which("wsl.exe")
+
+    if tool == "wsl-default-distro":
+        rc = _run(["wsl.exe", "--list", "--quiet"], timeout=8)
+        return rc == 0
+
+    # ── meta / always-true bookkeeping entries ────────────────────────────
+    if tool in (
+        "install-start", "system-scan", "system-restore-point",
+        "dotfiles-seed", "path-auditor", "html-report",
+        "restore-bundle", "launchpad", "sandbox-templates",
+        "obsidian-vault",
+    ):
+        return None  # skip — bookkeeping, not verifiable presence checks
+
+    return None  # unknown tool
 
 
-def _check_pytorch_cuda() -> dict[str, Any]:
-    """Check PyTorch GPU support."""
-    try:
-        import torch
-        return {
-            "installed": True,
-            "version": torch.__version__,
-            "cuda_available": torch.cuda.is_available(),
-            "cuda_version": torch.version.cuda if torch.cuda.is_available() else None,
-            "device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
-            "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-        }
-    except ImportError:
-        return {"installed": False}
-    except Exception as e:
-        return {"installed": True, "error": str(e)}
+# ---------------------------------------------------------------------------
+# Catalog detector wrapper
+# ---------------------------------------------------------------------------
+
+_CATALOG_BY_TOOL = {e.tool: e for e in WINGET_CATALOG}
 
 
-def load_manifest() -> dict[str, Any] | None:
-    """Load the devkit-manifest.json if it exists."""
-    manifest_path = _REPO_ROOT / "devkit-manifest.json"
-    if not manifest_path.is_file():
+def _detect(tool: str) -> bool | None:
+    """Return True=found, False=missing, None=skip (unverifiable)."""
+    non_cat = _detect_non_catalog(tool)
+    if non_cat is not None:
+        return non_cat
+    if tool in _CATALOG_BY_TOOL:
+        try:
+            return get_detector(_CATALOG_BY_TOOL[tool])()
+        except Exception:
+            return False
+    return None  # manifest tool not known to verifier — skip
+
+
+# ---------------------------------------------------------------------------
+# Manifest loader
+# ---------------------------------------------------------------------------
+
+def _load_manifest() -> dict[str, Any] | None:
+    p = _REPO_ROOT / "devkit-manifest.json"
+    if not p.is_file():
         return None
     try:
-        with open(manifest_path) as f:
+        with open(p) as f:
             return json.load(f)
     except Exception:
         return None
 
 
+# ---------------------------------------------------------------------------
+# PyTorch deep check
+# ---------------------------------------------------------------------------
+
+def _pytorch_info() -> dict[str, Any]:
+    try:
+        import torch
+        info: dict[str, Any] = {"installed": True, "version": torch.__version__}
+        info["cuda_available"] = torch.cuda.is_available()
+        if info["cuda_available"]:
+            info["cuda_version"] = torch.version.cuda
+            info["device_count"] = torch.cuda.device_count()
+            info["device_name"] = torch.cuda.get_device_name(0)
+        return info
+    except ImportError:
+        return {"installed": False}
+    except Exception as exc:
+        return {"installed": True, "error": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def verify_install() -> None:
-    """Verify install against manifest."""
     print("=" * 90)
     print("AM-DevKit Install Verification")
     print("=" * 90)
-    print()
 
-    # Load manifest
-    manifest = load_manifest()
+    manifest = _load_manifest()
     if not manifest:
-        print("No manifest found. Run --dry-run or START INSTALL first.\n")
+        print("\nNo manifest found — run the installer first (even --dry-run writes a manifest).\n")
         return
 
-    print(f"Manifest generated: {manifest.get('generated_at', 'unknown')}")
-    print(f"DevKit version: {manifest.get('devkit_version', 'unknown')}\n")
+    print(f"\nManifest generated : {manifest.get('generated_at', 'unknown')}")
+    print(f"DevKit version     : {manifest.get('devkit_version', 'unknown')}\n")
 
-    # Extract expected tools from manifest by status
-    expected_tools = {}  # tool -> {status, layer, method, expected}
-    for tool_entry in manifest.get("tools", []):
-        tool_name = tool_entry.get("tool")
-        status = tool_entry.get("status", "unknown")
-        if tool_name and status in ("installed", "planned"):
-            expected_tools[tool_name] = {
+    # Collect tools the manifest considers installed/planned
+    expected: dict[str, dict] = {}
+    for entry in manifest.get("tools", []):
+        name   = entry.get("tool", "")
+        status = entry.get("status", "")
+        if name and status in ("installed", "planned"):
+            expected[name] = {
                 "status": status,
-                "layer": tool_entry.get("layer", "?"),
-                "method": tool_entry.get("install_method", "?"),
-                "notes": tool_entry.get("notes", ""),
+                "layer":  entry.get("layer", "?"),
+                "method": entry.get("install_method", "?"),
             }
 
-    print(f"Manifest expected {len(expected_tools)} tools to install\n")
-
-    # Check each expected tool
-    print("EXPECTED TOOLS VERIFICATION:")
+    print(f"Manifest: {len(expected)} tools marked installed/planned\n")
+    print("TOOL VERIFICATION")
     print("-" * 90)
 
-    found_count = 0
-    missing = []
-    catalog_by_tool = {e.tool: e for e in WINGET_CATALOG}
+    found, missing, skipped = [], [], []
 
-    for tool_name in sorted(expected_tools.keys()):
-        info = expected_tools[tool_name]
-        layer = info["layer"]
-
-        # Skip non-installable meta tools
-        if layer in ("meta", "preflight", "layer0", "finalize", "sandbox"):
+    for tool in sorted(expected):
+        result = _detect(tool)
+        if result is None:
+            skipped.append(tool)
             continue
-
-        detected = False
-        if tool_name in catalog_by_tool:
-            detected = _check_tool_via_detector(catalog_by_tool[tool_name])
-        elif tool_name in ("system-restore-point", "system-scan", "ctt-winutil", "dotfiles-seed", "vscode-extensions", "rustup-stable", "gpu-detect", "wsl-prereq", "sandbox-templates"):
-            # Non-catalog tools that are harder to detect
-            # Mark as detected if they were marked installed/planned
-            detected = info["status"] == "installed"
-
-        icon = "[+]" if detected else "[-]"
-        status_icon = "I" if info["status"] == "installed" else "P"  # I=installed, P=planned
-        size = TOOL_DISK_MB.get(tool_name, 100)
-
-        if detected:
-            found_count += 1
-            print(f"  {icon} [{status_icon}] {tool_name:30s} {size:5d}MB  ({layer:15s}) OK")
+        layer = expected[tool]["layer"]
+        if result:
+            found.append(tool)
+            print(f"  [+] {tool:40s} ({layer})")
         else:
-            missing.append(tool_name)
-            print(f"  {icon} [{status_icon}] {tool_name:30s} {size:5d}MB  ({layer:15s}) MISSING")
+            missing.append(tool)
+            print(f"  [-] {tool:40s} ({layer})  MISSING")
 
-    print(f"\nFound: {found_count}/{len([t for t in expected_tools if expected_tools[t]['layer'] not in ('meta', 'preflight', 'layer0', 'finalize', 'sandbox')])}")
+    verifiable = len(found) + len(missing)
+    print(f"\nResult: {len(found)}/{verifiable} verified present  "
+          f"({len(skipped)} bookkeeping entries skipped)")
 
-    # GPU Detection
+    # ── ML stack deep check ───────────────────────────────────────────────
     print("\n" + "=" * 90)
-    print("HARDWARE DETECTION:")
-    print("-" * 90)
-    gpu_info = _detect_gpu()
-    print(f"GPU: {gpu_info}\n")
-
-    # PyTorch Deep Check
-    print("=" * 90)
-    print("ML STACK DEEP CHECKS:")
+    print("ML STACK")
     print("-" * 90)
 
-    pytorch_info = _check_pytorch_cuda()
-    if pytorch_info["installed"]:
-        print("PyTorch installed: YES")
-        print(f"  Version: {pytorch_info.get('version', 'unknown')}")
-        if "error" in pytorch_info:
-            print(f"  Error: {pytorch_info['error']}")
+    pt = _pytorch_info()
+    if pt["installed"]:
+        print(f"PyTorch  v{pt.get('version', '?')}")
+        if "error" in pt:
+            print(f"  error: {pt['error']}")
+        elif pt.get("cuda_available"):
+            print(f"  CUDA {pt.get('cuda_version')}  |  "
+                  f"{pt.get('device_count')} device(s)  |  {pt.get('device_name')}")
         else:
-            print(f"  CUDA available: {pytorch_info.get('cuda_available', False)}")
-            if pytorch_info.get("cuda_available"):
-                print(f"  CUDA version: {pytorch_info.get('cuda_version', 'unknown')}")
-                print(f"  GPU count: {pytorch_info.get('device_count', 0)}")
-                print(f"  GPU name: {pytorch_info.get('device_name', 'unknown')}")
-            else:
-                print("  (Running CPU-only mode)")
+            print("  CUDA not available (CPU-only or DirectML build)")
     else:
-        print("PyTorch installed: NO")
+        print("PyTorch  NOT installed")
 
-    print()
-
-    # ML pip packages
-    print("ML pip packages:")
+    print("\nML pip packages:")
     ml_pkgs = {
         "numpy": "numpy",
         "pandas": "pandas",
         "matplotlib": "matplotlib",
-        "sklearn": "scikit-learn",
-        "jupyter": "Jupyter",
+        "scikit-learn": "scikit-learn",
+        "jupyter_core": "jupyter",
         "IPython": "IPython",
     }
-    ml_found = 0
-    for import_name, display_name in ml_pkgs.items():
-        version = _get_python_package_version(import_name)
-        if version:
-            print(f"  [+] {display_name:15s} v{version}")
-            ml_found += 1
-        else:
-            print(f"  [-] {display_name:15s} NOT FOUND")
+    for import_name, display in ml_pkgs.items():
+        ver = _pip_pkg(import_name)
+        tag = f"v{ver}" if ver else "NOT installed"
+        icon = "[+]" if ver else "[-]"
+        print(f"  {icon} {display:15s}  {tag}")
 
-    print(f"\nML packages: {ml_found}/{len(ml_pkgs)}")
-
-    # Summary
+    # ── Sanitization ──────────────────────────────────────────────────────
     print("\n" + "=" * 90)
-    print("SUMMARY:")
-    print("=" * 90)
-    if missing:
-        print(f"\nMISSING TOOLS ({len(missing)}):")
-        for tool in sorted(missing):
-            print(f"  - {tool}")
-        print("\nRun `python scripts/scan-all-tools.py` for more details on all tools.")
+    print("SANITIZATION")
+    print("-" * 90)
+    san_entry = next(
+        (e for e in manifest.get("tools", []) if e.get("tool") == "am-sanitize"),
+        None,
+    )
+    if san_entry:
+        print(f"  Status  : {san_entry.get('status', '?')}")
+        print(f"  Notes   : {san_entry.get('notes', '—')}")
+        print(f"  Script  : {'present' if _file(_REPO_ROOT / 'scripts' / 'sanitize.ps1') else 'MISSING'}")
     else:
-        print("\nAll expected tools found!")
+        print("  Sanitization was not run (am-sanitize not in manifest)")
 
-    # Manifest status breakdown
+    # ── Summary ───────────────────────────────────────────────────────────
     print("\n" + "=" * 90)
-    print("MANIFEST STATUS BREAKDOWN:")
-    print("-" * 90)
-    status_counts = {}
-    for tool_entry in manifest.get("tools", []):
-        status = tool_entry.get("status", "unknown")
-        status_counts[status] = status_counts.get(status, 0) + 1
+    print("SUMMARY")
+    print("=" * 90)
 
-    for status in ["installed", "planned", "failed", "skipped"]:
-        count = status_counts.get(status, 0)
-        if count > 0:
-            print(f"  {status:12s}: {count:3d}")
-
-    # Recommendations
-    print("\n" + "=" * 90)
-    print("RECOMMENDATIONS:")
-    print("-" * 90)
-    if pytorch_info["installed"] and not pytorch_info.get("cuda_available"):
-        print("  * PyTorch is installed but CUDA is not available.")
-        print("    Install NVIDIA CUDA Toolkit if you have an NVIDIA GPU.")
     if missing:
-        if len(missing) < 10:
-            print(f"  * {len(missing)} tools are missing. Check installation logs.")
-        else:
-            print(f"  * {len(missing)} tools are missing. Run full install again or")
-            print("    manually install with: winget install <tool-id>")
+        print(f"\nMISSING ({len(missing)}):")
+        for t in missing:
+            layer = expected[t]["layer"]
+            print(f"  - {t}  (layer: {layer})")
+        print("\nRe-run the installer — idempotent steps will skip already-present tools.")
+    else:
+        print("\nAll verifiable tools confirmed present.")
+
+    status_counts: dict[str, int] = {}
+    for entry in manifest.get("tools", []):
+        s = entry.get("status", "unknown")
+        status_counts[s] = status_counts.get(s, 0) + 1
+    print("\nManifest status breakdown:")
+    for s in ("installed", "planned", "skipped", "failed"):
+        if status_counts.get(s):
+            print(f"  {s:12s}: {status_counts[s]}")
     print()
 
 
