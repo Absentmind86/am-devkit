@@ -1009,6 +1009,28 @@ def main_gui() -> None:
             sanitation_presets_section.update()
             sync_previews()
 
+        def run_restore_defaults(_: ft.ControlEvent) -> None:
+            script = _REPO_ROOT / "scripts" / "sanitize-restore.ps1"
+            if not script.is_file():
+                show_snack("sanitize-restore.ps1 not found.")
+                return
+            safe = str(script).replace("'", "''")
+            ps_cmd = (
+                f"& '{safe}'; "
+                f"Write-Host ''; "
+                f"Write-Host ('=' * 60) -ForegroundColor DarkGray; "
+                f"Read-Host 'Press Enter to close'"
+            )
+            try:
+                creation = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0  # type: ignore[attr-defined]
+                subprocess.Popen(
+                    ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+                    cwd=str(_REPO_ROOT), creationflags=creation,
+                )
+                show_snack("Restore script launched — approve the UAC prompt if prompted.")
+            except OSError as exc:
+                show_snack(f"Could not start restore script: {exc}")
+
         run_sanitation.on_change = on_sanitation_change
         for sw in (dry_run, skip_rp, skip_dotfiles, skip_rust, assume_yes, skip_summary, enable_wsl, wsl_skip):
             sw.on_change = bind_switch
@@ -1250,6 +1272,21 @@ def main_gui() -> None:
                         ),
                     ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     sanitation_presets_section,
+                    ft.Container(
+                        content=ft.Row([
+                            ft.OutlinedButton(
+                                "Restore Windows defaults",
+                                icon=ft.Icons.UNDO,
+                                on_click=run_restore_defaults,
+                                style=ft.ButtonStyle(color=ft.Colors.ON_SURFACE_VARIANT),
+                            ),
+                            ft.Text(
+                                "Undo sanitization — restores registry & services to Windows defaults.",
+                                size=11, italic=True, color=ft.Colors.ON_SURFACE_VARIANT, expand=True,
+                            ),
+                        ], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+                        padding=ft.padding.only(top=2, bottom=2),
+                    ),
                     skip_rp, skip_dotfiles, skip_rust, assume_yes, skip_summary,
                     ft.Divider(),
                     ml_wheels, ml_base,

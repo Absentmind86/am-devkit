@@ -11,6 +11,7 @@ Presets (defined in config/sanitize-*.json for display, implemented in sanitize.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,25 @@ def run_sanitize(ctx: InstallContext, manifest: Manifest, console: Console) -> N
         )
         console.print("  [skipped] sanitization — use --run-sanitation to enable")
         return
+
+    manifest_path = ctx.repo_root / "devkit-manifest.json"
+    if manifest_path.is_file():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for entry in data.get("tools", []):
+                if entry.get("tool") == "am-sanitize" and entry.get("status") == "installed":
+                    prev = entry.get("notes", "")
+                    console.print(f"  [skipped] sanitization already applied in a prior run ({prev})")
+                    manifest.record_tool(
+                        tool="am-sanitize",
+                        layer="sanitize",
+                        status="skipped",
+                        install_method="native-ps1",
+                        notes=f"Already applied in a prior run. {prev}".strip(),
+                    )
+                    return
+        except Exception:
+            pass
 
     if ctx.dry_run:
         manifest.record_tool(

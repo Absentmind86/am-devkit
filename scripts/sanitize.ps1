@@ -169,7 +169,7 @@ if ($Preset -eq 'Standard') {
 
 Write-Host ''
 if ($script:ErrCount -eq 0) {
-    Write-Host "Sanitization complete. ($Preset preset — no errors)" -ForegroundColor Green
+    Write-Host "Sanitization complete. ($Preset preset - no errors)" -ForegroundColor Green
     exit 0
 } else {
     Write-Host "Sanitization finished with $($script:ErrCount) warning(s). Check output above." -ForegroundColor Yellow
