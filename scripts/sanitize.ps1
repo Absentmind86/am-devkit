@@ -33,7 +33,7 @@ function Set-Reg {
 function Set-Svc {
     param([string]$Name, [string]$Startup)
     $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
-    if ($null -eq $svc) { Write-Host "  [svc] $Name — not found, skipping"; return }
+    if ($null -eq $svc) { Write-Host "  [svc] $Name - not found, skipping"; return }
     Set-Service -Name $Name -StartupType $Startup -ErrorAction Continue
     if ($Startup -eq 'Disabled') {
         Stop-Service -Name $Name -Force -ErrorAction SilentlyContinue
@@ -42,7 +42,7 @@ function Set-Svc {
 }
 
 Write-Host ''
-Write-Host "AM-DevKit Sanitization — Preset: $Preset" -ForegroundColor Cyan
+Write-Host "AM-DevKit Sanitization - Preset: $Preset" -ForegroundColor Cyan
 Write-Host '============================================' -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
