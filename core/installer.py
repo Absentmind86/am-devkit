@@ -167,6 +167,15 @@ def _configure_stdio_utf8() -> None:
                 pass
 
 
+def _is_admin() -> bool:
+    """Return True if the current process has Administrator privileges (Windows only)."""
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return True  # non-Windows or check unavailable — don't block
+
+
 def main(argv: list[str] | None = None) -> int:
     _configure_stdio_utf8()
     parser = argparse.ArgumentParser(description="AM-DevKit installer (CLI).")
@@ -263,6 +272,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip this catalog tool id even if a profile would install it (repeatable).",
     )
     args = parser.parse_args(argv)
+
+    if not args.dry_run and not _is_admin():
+        print(
+            "\nAM-DevKit requires Administrator privileges.\n"
+            "Please re-run from an elevated PowerShell or right-click → Run as Administrator.\n"
+            "(Tip: use --dry-run to preview the install plan without elevation.)\n",
+            file=sys.stderr,
+        )
+        return 1
 
     profiles = merge_profile_args(absentmind=args.absentmind, profiles=list(args.profile))
     if not profiles:

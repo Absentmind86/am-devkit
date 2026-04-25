@@ -47,6 +47,24 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Self-elevate: winget installs and system-level operations require Administrator.
+# One UAC prompt here means no surprise prompts from installers mid-run.
+$_isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $_isAdmin) {
+    Write-Host 'AM-DevKit requires Administrator rights. Triggering UAC elevation (one prompt)...' -ForegroundColor Yellow
+    $argParts = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
+    foreach ($p in $PSBoundParameters.GetEnumerator()) {
+        if ($p.Value -is [switch]) {
+            if ($p.Value) { $argParts += "-$($p.Key)" }
+        } else {
+            $argParts += "-$($p.Key)"
+            $argParts += "`"$($p.Value)`""
+        }
+    }
+    Start-Process powershell.exe -Verb RunAs -ArgumentList ($argParts -join ' ') -Wait
+    exit
+}
+
 function Get-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
