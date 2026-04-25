@@ -327,6 +327,10 @@ def get_detector(entry: WingetCatalogEntry) -> Callable[[], bool]:
 
         return _extras_detect
 
+    if entry.tool == "cursor":
+        # Cursor does not register on PATH; winget installs to LOCALAPPDATA\Programs\cursor
+        _cursor_path = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "cursor" / "Cursor.exe"
+        return lambda: _exe_found("cursor.exe") or _path_if_file(_cursor_path)
     if entry.tool == "godot":
         return lambda: bool(
             shutil.which("godot.exe") or shutil.which("Godot.exe") or shutil.which("godot4_console.exe")
