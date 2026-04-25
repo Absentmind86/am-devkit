@@ -5,6 +5,8 @@
 ### *You just got a new machine. Run one thing. Walk away.*
 ### *Come back to a fully configured, GPU-intelligent development environment.*
 
+[![CI](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/ci.yml/badge.svg)](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/ci.yml)
+[![Checksums](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/update-checksums.yml/badge.svg)](https://github.com/Absentmind86/Absentminds-DevKit-Windows/actions/workflows/update-checksums.yml)
 [![Status](https://img.shields.io/badge/status-pre--release-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
