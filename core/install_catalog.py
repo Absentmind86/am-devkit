@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from core.platform_util import is_windows
+
 # --- Profile sets (ids match ``--profile`` / Absentmind list) ---
 P_WEB: Final[frozenset[str]] = frozenset({"web-fullstack"})
 P_AI: Final[frozenset[str]] = frozenset({"ai-ml"})
@@ -409,7 +411,14 @@ def estimate_catalog_disk_mb(
 
 
 def _exe_found(name: str) -> bool:
-    return shutil.which(name) is not None
+    if shutil.which(name) is not None:
+        return True
+    # On non-Windows, also try the name without .exe suffix so detectors
+    # written for Windows (e.g. "vlc.exe") still work when the tool is
+    # installed as "vlc" via apt/brew.
+    if not is_windows() and name.endswith(".exe"):
+        return shutil.which(name[:-4]) is not None
+    return False
 
 
 def _path_if_file(path: Path) -> bool:
@@ -420,7 +429,9 @@ def _path_if_file(path: Path) -> bool:
 
 
 def _extras_paths(tool: str) -> list[Path]:
-    """Typical install locations when an app is not on PATH."""
+    """Typical install locations when an app is not on PATH (Windows only)."""
+    if not is_windows():
+        return []
     pf = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
     pfx86 = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
     loc = Path(os.environ.get("LOCALAPPDATA", ""))
@@ -505,61 +516,74 @@ def get_detector(entry: CatalogEntry) -> Callable[[], bool]:
         return _extras_detect
 
     if entry.tool == "cursor":
-        _cursor_path = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "cursor" / "Cursor.exe"
-        return lambda: _exe_found("cursor.exe") or _path_if_file(_cursor_path)
+        if is_windows():
+            _cursor_path = (
+                Path(os.environ.get("LOCALAPPDATA", ""))
+                / "Programs" / "cursor" / "Cursor.exe"
+            )
+            return lambda: _exe_found("cursor.exe") or _path_if_file(_cursor_path)
+        return lambda: _exe_found("cursor")
 
-    # GUI apps that do not reliably register on PATH after winget install
-    _loc = Path(os.environ.get("LOCALAPPDATA", ""))
-    _pf  = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
-    _pfx = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    # GUI apps that do not reliably register on PATH after winget install.
+    # Path checks are Windows-only; non-Windows relies on _exe_found() which
+    # handles the .exe→no-suffix fallback automatically.
+    if is_windows():
+        _loc = Path(os.environ.get("LOCALAPPDATA", ""))
+        _pf  = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        _pfx = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
 
-    if entry.tool == "jetbrains-toolbox":
-        _jb = _loc / "JetBrains" / "Toolbox" / "bin" / "jetbrains-toolbox.exe"
-        return lambda: _exe_found("jetbrains-toolbox.exe") or _path_if_file(_jb)
+        if entry.tool == "jetbrains-toolbox":
+            _jb = _loc / "JetBrains" / "Toolbox" / "bin" / "jetbrains-toolbox.exe"
+            return lambda: _exe_found("jetbrains-toolbox.exe") or _path_if_file(_jb)
 
-    if entry.tool == "arduino-ide":
-        _ard = _loc / "Arduino IDE" / "Arduino IDE.exe"
-        return lambda: _exe_found("arduino.exe") or _path_if_file(_ard)
+        if entry.tool == "arduino-ide":
+            _ard = _loc / "Arduino IDE" / "Arduino IDE.exe"
+            return lambda: _exe_found("arduino.exe") or _path_if_file(_ard)
 
-    if entry.tool == "bruno":
-        _bruno = _loc / "Programs" / "Bruno" / "Bruno.exe"
-        return lambda: _exe_found("Bruno.exe") or _exe_found("bruno.exe") or _path_if_file(_bruno)
+        if entry.tool == "bruno":
+            _bruno = _loc / "Programs" / "Bruno" / "Bruno.exe"
+            return lambda: _exe_found("Bruno.exe") or _exe_found("bruno.exe") or _path_if_file(_bruno)
 
-    if entry.tool == "notepadplusplus":
-        _npp = _pf / "Notepad++" / "notepad++.exe"
-        _nppx = _pfx / "Notepad++" / "notepad++.exe"
-        return lambda: _exe_found("notepad++.exe") or _path_if_file(_npp) or _path_if_file(_nppx)
+        if entry.tool == "notepadplusplus":
+            _npp = _pf / "Notepad++" / "notepad++.exe"
+            _nppx = _pfx / "Notepad++" / "notepad++.exe"
+            return lambda: _exe_found("notepad++.exe") or _path_if_file(_npp) or _path_if_file(_nppx)
 
-    if entry.tool == "dbeaver":
-        _db = _pf / "DBeaver" / "dbeaver.exe"
-        return lambda: _exe_found("dbeaver.exe") or _path_if_file(_db)
+        if entry.tool == "dbeaver":
+            _db = _pf / "DBeaver" / "dbeaver.exe"
+            return lambda: _exe_found("dbeaver.exe") or _path_if_file(_db)
 
-    if entry.tool == "winmerge":
-        _wm = _pf / "WinMerge" / "WinMergeU.exe"
-        _wmx = _pfx / "WinMerge" / "WinMergeU.exe"
-        return lambda: _exe_found("WinMergeU.exe") or _path_if_file(_wm) or _path_if_file(_wmx)
+        if entry.tool == "winmerge":
+            _wm = _pf / "WinMerge" / "WinMergeU.exe"
+            _wmx = _pfx / "WinMerge" / "WinMergeU.exe"
+            return lambda: _exe_found("WinMergeU.exe") or _path_if_file(_wm) or _path_if_file(_wmx)
+
+        if entry.tool == "unity-hub":
+            _uh_pf   = _pf  / "Unity Hub" / "Unity Hub.exe"
+            _uh_pfx  = _pfx / "Unity Hub" / "Unity Hub.exe"
+            _uh_loc  = _loc / "Programs" / "Unity Hub" / "Unity Hub.exe"
+            return lambda: bool(_uh_pf.is_file() or _uh_pfx.is_file() or _uh_loc.is_file()
+                                or shutil.which("unityhub"))
 
     if entry.tool == "godot":
         return lambda: bool(
-            shutil.which("godot.exe") or shutil.which("Godot.exe") or shutil.which("godot4_console.exe")
+            shutil.which("godot.exe") or shutil.which("Godot.exe")
+            or shutil.which("godot4_console.exe") or shutil.which("godot")
         )
     if entry.tool == "unity-hub":
-        _uh_pf  = Path(os.environ.get("PROGRAMFILES",      "C:\\Program Files"))          / "Unity Hub" / "Unity Hub.exe"
-        _uh_pf86 = Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"))   / "Unity Hub" / "Unity Hub.exe"
-        _uh_local = Path(os.environ.get("LOCALAPPDATA",    "")) / "Programs" / "Unity Hub" / "Unity Hub.exe"
-        return lambda: bool(_uh_pf.is_file() or _uh_pf86.is_file() or _uh_local.is_file() or shutil.which("unityhub"))
+        return lambda: bool(shutil.which("unityhub") or shutil.which("unity-hub"))
+
     if exe == "java.exe":
-        return lambda: bool(shutil.which("java.exe") or shutil.which("javac.exe"))
+        return lambda: bool(shutil.which("java.exe") or shutil.which("java") or shutil.which("javac"))
     if exe == "az.cmd":
-        return lambda: bool(shutil.which("az.cmd") or shutil.which("az.exe"))
+        return lambda: bool(shutil.which("az.cmd") or shutil.which("az"))
     if exe == "gcloud.cmd":
-        return lambda: bool(shutil.which("gcloud.cmd") or shutil.which("gcloud.exe"))
+        return lambda: bool(shutil.which("gcloud.cmd") or shutil.which("gcloud"))
     if entry.tool == "redis":
         return lambda: bool(
-            shutil.which("redis-server.exe")
-            or shutil.which("redis-cli.exe")
+            shutil.which("redis-server.exe") or shutil.which("redis-server")
             or shutil.which("redis-cli")
         )
     if entry.tool == "postgresql-17":
-        return lambda: bool(shutil.which("psql.exe"))
+        return lambda: bool(shutil.which("psql.exe") or shutil.which("psql"))
     return _d(exe)

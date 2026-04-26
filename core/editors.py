@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from core.catalog_install import install_catalog_layer
+from core.platform_util import is_windows
 from core.winget_util import ensure_winget_package, which
 
 if TYPE_CHECKING:
@@ -18,20 +19,34 @@ if TYPE_CHECKING:
     from core.manifest import Manifest
 
 
-def _vscode_code_cmd() -> Path | None:
-    local = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd"
-    if local.is_file():
-        return local
-    w = which("code.cmd") or which("code.exe")
-    return Path(w) if w else None
+def _vscode_cli() -> Path | None:
+    """Return the path to the VS Code CLI binary for the current platform."""
+    if is_windows():
+        local = Path(
+            __import__("os").environ.get("LOCALAPPDATA", "")
+        ) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd"
+        if local.is_file():
+            return local
+        w = which("code.cmd") or which("code.exe")
+        return Path(w) if w else None
+    # macOS / Linux: code is on PATH after install
+    found = shutil.which("code") or shutil.which("code-insiders")
+    return Path(found) if found else None
 
 
-def _cursor_cmd() -> Path | None:
-    local = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "cursor" / "resources" / "app" / "bin" / "cursor.cmd"
-    if local.is_file():
-        return local
-    w = which("cursor.cmd") or which("cursor.exe")
-    return Path(w) if w else None
+def _cursor_cli() -> Path | None:
+    """Return the path to the Cursor CLI binary for the current platform."""
+    if is_windows():
+        local = (
+            Path(__import__("os").environ.get("LOCALAPPDATA", ""))
+            / "Programs" / "cursor" / "resources" / "app" / "bin" / "cursor.cmd"
+        )
+        if local.is_file():
+            return local
+        w = which("cursor.cmd") or which("cursor.exe")
+        return Path(w) if w else None
+    found = shutil.which("cursor")
+    return Path(found) if found else None
 
 
 def _load_vscode_extension_ids(repo_root: Path) -> list[str]:
@@ -48,11 +63,22 @@ def _load_vscode_extension_ids(repo_root: Path) -> list[str]:
     return [str(x).strip() for x in rec if isinstance(x, str) and str(x).strip()]
 
 
+def _build_cli_argv(cli_cmd: Path, *args: str) -> list[str]:
+    """Build the argv for a VS Code-compatible CLI call.
+
+    On Windows the binary is a .cmd file and must be launched via cmd.exe.
+    On other platforms it is a plain executable.
+    """
+    if is_windows():
+        return ["cmd.exe", "/c", str(cli_cmd), *args]
+    return [str(cli_cmd), *args]
+
+
 def _list_installed_extensions(cli_cmd: Path) -> frozenset[str]:
     """Return the lowercase IDs of extensions already installed in this editor."""
     try:
         proc = subprocess.run(
-            ["cmd.exe", "/c", str(cli_cmd), "--list-extensions"],
+            _build_cli_argv(cli_cmd, "--list-extensions"),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -87,7 +113,7 @@ def _install_extensions_via_cli(
             ok += 1
             continue
         console.print(f"    [{i}/{n}] {ext} …")
-        argv = ["cmd.exe", "/c", str(cli_cmd), "--install-extension", ext]
+        argv = _build_cli_argv(cli_cmd, "--install-extension", ext)
         try:
             proc = subprocess.run(
                 argv,
@@ -167,7 +193,7 @@ def _install_vscode_extensions(
             console.print(f"    [dim]{line[:160]}[/dim]")
 
     # Also install extensions for Cursor if available
-    cursor = _cursor_cmd()
+    cursor = _cursor_cli()
     if cursor is not None and "cursor" not in ctx.catalog_exclude_tools:
         console.print(f"  [installing] cursor-extensions — {n} extensions via cursor …")
         c_ok, c_failed = _install_extensions_via_cli(console, cursor, extension_ids, "cursor")
@@ -198,67 +224,61 @@ def _install_vscode_extensions(
 def run_editors(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     console.print("[bold]Layer 3 — Editors[/bold]")
 
-    # VS Code and Cursor are in WINGET_CATALOG (profiles=None) so the GUI
-    # can exclude them via --exclude-catalog-tool.  We still drive the install
-    # here (not via install_catalog_layer) because vscode needs its path for
-    # the extension step; we just honour the exclude flag first.
-    if "vscode" in ctx.catalog_exclude_tools:
-        manifest.record_tool(
-            tool="vscode",
-            layer="editors",
-            status="skipped",
-            install_method="user-exclude",
-            notes="Excluded via --exclude-catalog-tool vscode.",
-        )
-        console.print("  [skipped] vscode — user excluded")
-    else:
-        ensure_winget_package(
-            ctx,
-            manifest,
-            console,
-            tool="vscode",
-            layer="editors",
-            win_id="Microsoft.VisualStudioCode",
-            detect=lambda: _vscode_code_cmd() is not None,
-        )
+    if is_windows():
+        # Windows: install vscode/cursor directly via winget so code.cmd is available
+        # immediately for the extension installer step below.
+        if "vscode" in ctx.catalog_exclude_tools:
+            manifest.record_tool(
+                tool="vscode", layer="editors", status="skipped",
+                install_method="user-exclude",
+                notes="Excluded via --exclude-catalog-tool vscode.",
+            )
+            console.print("  [skipped] vscode — user excluded")
+        else:
+            ensure_winget_package(
+                ctx, manifest, console,
+                tool="vscode", layer="editors",
+                winget_id="Microsoft.VisualStudioCode",
+                detect=lambda: _vscode_cli() is not None,
+            )
 
-    if "cursor" in ctx.catalog_exclude_tools:
-        manifest.record_tool(
-            tool="cursor",
-            layer="editors",
-            status="skipped",
-            install_method="user-exclude",
-            notes="Excluded via --exclude-catalog-tool cursor.",
-        )
-        console.print("  [skipped] cursor — user excluded")
-    else:
-        ensure_winget_package(
-            ctx,
-            manifest,
-            console,
-            tool="cursor",
-            layer="editors",
-            win_id="Anysphere.Cursor",
-            detect=lambda: which("cursor.exe") is not None,
-        )
+        if "cursor" in ctx.catalog_exclude_tools:
+            manifest.record_tool(
+                tool="cursor", layer="editors", status="skipped",
+                install_method="user-exclude",
+                notes="Excluded via --exclude-catalog-tool cursor.",
+            )
+            console.print("  [skipped] cursor — user excluded")
+        else:
+            ensure_winget_package(
+                ctx, manifest, console,
+                tool="cursor", layer="editors",
+                winget_id="Anysphere.Cursor",
+                detect=lambda: which("cursor.exe") is not None,
+            )
 
-    # Skip extensions if VS Code itself was excluded
+        # Remaining editors (jetbrains-toolbox) — skip vscode/cursor already handled.
+        install_catalog_layer(
+            ctx, manifest, console, "editors",
+            skip_tools=frozenset({"vscode", "cursor"}),
+        )
+    else:
+        # macOS / Linux: catalog handles vscode (brew cask / apt + Microsoft repo)
+        # and cursor (brew cask) alongside jetbrains-toolbox etc.
+        install_catalog_layer(ctx, manifest, console, "editors")
+
+    # VS Code extensions — platform-agnostic CLI invocation via _build_cli_argv.
     if "vscode" not in ctx.catalog_exclude_tools:
         ids = _load_vscode_extension_ids(ctx.repo_root)
-        code = _vscode_code_cmd()
+        code = _vscode_cli()
         if code is None:
             manifest.record_tool(
                 tool="vscode-extensions",
                 layer="editors",
                 status="skipped",
                 install_method="code-cli",
-                notes="VS Code bin/code.cmd not found; install VS Code first.",
+                notes="VS Code CLI not found; install VS Code first.",
             )
-            console.print("  [skipped] vscode-extensions — code.cmd not found")
+            console.print("  [skipped] vscode-extensions — code CLI not found")
         else:
             _install_vscode_extensions(ctx, manifest, console, code, ids)
-
-    # Remaining editors catalog entries (e.g. jetbrains-toolbox) via profile gates.
-    # vscode/cursor are already handled above; skip them here to avoid a double-install
-    # that causes a spurious winget failure when PATH hasn't refreshed yet.
-    install_catalog_layer(ctx, manifest, console, "editors", skip_tools=frozenset({"vscode", "cursor"}))
