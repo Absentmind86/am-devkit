@@ -54,6 +54,6 @@ def install_catalog_layer(
             console,
             tool=entry.tool,
             layer=layer,
-            winget_id=entry.winget_id,
+            winget_id=entry.win_id,
             detect=get_detector(entry),
         )

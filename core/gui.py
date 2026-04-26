@@ -526,7 +526,7 @@ def main_gui() -> None:
                     ))
                     for e in entries:
                         dlg_body.controls.append(ft.Text(
-                            f"  • {e.tool}  ({e.layer})  —  {e.winget_id}", size=12
+                            f"  • {e.tool}  ({e.layer})  —  {e.win_id}", size=12
                         ))
                 feats = PROFILE_FEATURE_ITEMS.get(pid, ())
                 if feats:

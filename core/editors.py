@@ -218,7 +218,7 @@ def run_editors(ctx: InstallContext, manifest: Manifest, console: Console) -> No
             console,
             tool="vscode",
             layer="editors",
-            winget_id="Microsoft.VisualStudioCode",
+            win_id="Microsoft.VisualStudioCode",
             detect=lambda: _vscode_code_cmd() is not None,
         )
 
@@ -238,7 +238,7 @@ def run_editors(ctx: InstallContext, manifest: Manifest, console: Console) -> No
             console,
             tool="cursor",
             layer="editors",
-            winget_id="Anysphere.Cursor",
+            win_id="Anysphere.Cursor",
             detect=lambda: which("cursor.exe") is not None,
         )
 

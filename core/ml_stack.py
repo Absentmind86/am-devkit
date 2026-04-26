@@ -117,7 +117,7 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
             console,
             tool="ollama",
             layer="ml_stack",
-            winget_id="Ollama.Ollama",
+            win_id="Ollama.Ollama",
             detect=lambda: which("ollama.exe") is not None,
         )
 

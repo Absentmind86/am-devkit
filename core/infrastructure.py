@@ -55,7 +55,7 @@ def run_infrastructure(ctx: InstallContext, manifest: Manifest, console: Console
         console,
         tool="git",
         layer="infrastructure",
-        winget_id="Git.Git",
+        win_id="Git.Git",
         detect=lambda: which("git.exe") is not None,
     )
     ensure_winget_package(
@@ -64,7 +64,7 @@ def run_infrastructure(ctx: InstallContext, manifest: Manifest, console: Console
         console,
         tool="git-lfs",
         layer="infrastructure",
-        winget_id="GitHub.GitLFS",
+        win_id="GitHub.GitLFS",
         detect=_git_lfs_available,
     )
 

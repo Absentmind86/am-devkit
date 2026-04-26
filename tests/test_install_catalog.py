@@ -21,7 +21,7 @@ from core.install_catalog import (
 class TestAppliesTo:
     def test_profiles_none_always_applies(self):
         entry = WingetCatalogEntry(
-            tool="t", winget_id="X.X", layer="infrastructure",
+            tool="t", win_id="X.X", layer="infrastructure",
             profiles=None, detect_exe="t.exe",
         )
         assert entry.applies_to(set()) is True
@@ -29,7 +29,7 @@ class TestAppliesTo:
 
     def test_profile_match(self):
         entry = WingetCatalogEntry(
-            tool="t", winget_id="X.X", layer="languages",
+            tool="t", win_id="X.X", layer="languages",
             profiles=P_WEB, detect_exe="t.exe",
         )
         assert entry.applies_to({"web-fullstack"}) is True
@@ -38,7 +38,7 @@ class TestAppliesTo:
 
     def test_multi_profile_any_match(self):
         entry = WingetCatalogEntry(
-            tool="t", winget_id="X.X", layer="devops",
+            tool="t", win_id="X.X", layer="devops",
             profiles=frozenset({"web-fullstack", "ai-ml"}), detect_exe="t.exe",
         )
         assert entry.applies_to({"ai-ml"}) is True
@@ -147,9 +147,9 @@ class TestCatalogIntegrity:
         names = [e.tool for e in WINGET_CATALOG]
         assert len(names) == len(set(names)), "Duplicate tool names in WINGET_CATALOG"
 
-    def test_winget_ids_unique(self):
-        ids = [e.winget_id for e in WINGET_CATALOG]
-        assert len(ids) == len(set(ids)), "Duplicate winget IDs in WINGET_CATALOG"
+    def test_win_ids_unique(self):
+        ids = [e.win_id for e in WINGET_CATALOG]
+        assert len(ids) == len(set(ids)), "Duplicate win_id values in WINGET_CATALOG"
 
     def test_all_entries_have_nonempty_detect_exe(self):
         for e in WINGET_CATALOG:

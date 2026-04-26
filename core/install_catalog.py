@@ -1,7 +1,12 @@
-"""Winget package catalog toward PROJECT.md Phase 2B (profile-gated where noted).
+"""Cross-platform package catalog toward PROJECT.md Phase 2B (profile-gated where noted).
 
-IDs are from ``winget search`` / winget-pkgs; a wrong id surfaces as a failed manifest row
-on first real install so it can be corrected without guessing silently.
+win_id   — winget package ID (Windows)
+linux_id — apt/dnf/pacman package name (Linux); None = not available / skip
+macos_id — brew formula or cask name (macOS); None = not available / skip
+macos_cask — True when macos_id is a brew cask (GUI app), False for formulas
+
+A wrong id surfaces as a failed manifest row on first real install so it can be
+corrected without guessing silently.
 """
 
 from __future__ import annotations
@@ -31,15 +36,18 @@ P_EXTRAS: Final[frozenset[str]] = frozenset({"extras"})
 
 
 @dataclass(frozen=True, slots=True)
-class WingetCatalogEntry:
-    """One winget-installable component."""
+class CatalogEntry:
+    """One cross-platform installable component."""
 
     tool: str
-    winget_id: str
+    win_id: str
     layer: str
     # If set, at least one of these profiles must be selected.
     profiles: frozenset[str] | None
     detect_exe: str
+    linux_id: str | None = None
+    macos_id: str | None = None
+    macos_cask: bool = False
 
     def applies_to(self, selected: set[str]) -> bool:
         if self.profiles is None:
@@ -47,81 +55,85 @@ class WingetCatalogEntry:
         return bool(selected & self.profiles)
 
 
+# Backward-compat alias — existing imports of WingetCatalogEntry continue to work.
+WingetCatalogEntry = CatalogEntry
+
+
 def _d(exe: str) -> Callable[[], bool]:
     return lambda: shutil.which(exe) is not None
 
 
 # Order within a layer is install order (dependencies first where possible).
-WINGET_CATALOG: tuple[WingetCatalogEntry, ...] = (
+WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     # --- Layer 2: infrastructure (non-bootstrap, excludable via --exclude-catalog-tool) ---
     # Git, Git LFS, Scoop, and OpenSSH are NOT here — they are bootstrap prerequisites
     # and must be installed before the catalog system can run (see infrastructure.py).
-    WingetCatalogEntry("github-cli",       "GitHub.cli",                  "infrastructure", None, "gh.exe"),
-    WingetCatalogEntry("windows-terminal", "Microsoft.WindowsTerminal",   "infrastructure", None, "wt.exe"),
-    WingetCatalogEntry("powershell-7",     "Microsoft.PowerShell",        "infrastructure", None, "pwsh.exe"),
-    WingetCatalogEntry("oh-my-posh",       "JanDeDobbeleer.OhMyPosh",     "infrastructure", None, "oh-my-posh.exe"),
-    WingetCatalogEntry("tailscale",        "Tailscale.Tailscale",         "infrastructure", None, "tailscale.exe"),
+    CatalogEntry("github-cli",       "GitHub.cli",                  "infrastructure", None, "gh.exe"),
+    CatalogEntry("windows-terminal", "Microsoft.WindowsTerminal",   "infrastructure", None, "wt.exe"),
+    CatalogEntry("powershell-7",     "Microsoft.PowerShell",        "infrastructure", None, "pwsh.exe"),
+    CatalogEntry("oh-my-posh",       "JanDeDobbeleer.OhMyPosh",     "infrastructure", None, "oh-my-posh.exe"),
+    CatalogEntry("tailscale",        "Tailscale.Tailscale",         "infrastructure", None, "tailscale.exe"),
     # --- Layer 3: editors (common — optional via --exclude-catalog-tool) ---
-    WingetCatalogEntry("vscode",  "Microsoft.VisualStudioCode", "editors", None, "code.cmd"),
-    WingetCatalogEntry("cursor",  "Anysphere.Cursor",           "editors", None, "cursor.exe"),
+    CatalogEntry("vscode",  "Microsoft.VisualStudioCode", "editors", None, "code.cmd"),
+    CatalogEntry("cursor",  "Anysphere.Cursor",           "editors", None, "cursor.exe"),
     # --- Layer 7: utilities (common) ---
-    WingetCatalogEntry("7zip", "7zip.7zip", "utilities", None, "7z.exe"),
-    WingetCatalogEntry("notepadplusplus", "Notepad++.Notepad++", "utilities", None, "notepad++.exe"),
-    WingetCatalogEntry("everything", "voidtools.Everything", "utilities", None, "Everything.exe"),
-    WingetCatalogEntry("devtoys", "DevToys-app.DevToys", "utilities", None, "DevToys.exe"),
-    WingetCatalogEntry("winmerge", "WinMerge.WinMerge", "utilities", None, "WinMergeU.exe"),
-    WingetCatalogEntry("dbeaver", "DBeaver.DBeaver.Community", "utilities", P_WEB_AI, "dbeaver.exe"),
-    WingetCatalogEntry("bruno", "Bruno.Bruno", "utilities", P_WEB_AI, "Bruno.exe"),
-    WingetCatalogEntry("sysinternals", "Microsoft.Sysinternals.Suite", "utilities", P_SYS_HW, "procexp.exe"),
-    WingetCatalogEntry("wireshark", "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME_HW, "Wireshark.exe"),
-    WingetCatalogEntry("nmap", "Insecure.Nmap", "utilities", P_SYS, "nmap.exe"),
-    WingetCatalogEntry("arduino-ide", "ArduinoSA.IDE.stable", "utilities", P_HW, "arduino.exe"),
-    WingetCatalogEntry("putty", "PuTTY.PuTTY", "utilities", P_HW, "putty.exe"),
+    CatalogEntry("7zip", "7zip.7zip", "utilities", None, "7z.exe"),
+    CatalogEntry("notepadplusplus", "Notepad++.Notepad++", "utilities", None, "notepad++.exe"),
+    CatalogEntry("everything", "voidtools.Everything", "utilities", None, "Everything.exe"),
+    CatalogEntry("devtoys", "DevToys-app.DevToys", "utilities", None, "DevToys.exe"),
+    CatalogEntry("winmerge", "WinMerge.WinMerge", "utilities", None, "WinMergeU.exe"),
+    CatalogEntry("dbeaver", "DBeaver.DBeaver.Community", "utilities", P_WEB_AI, "dbeaver.exe"),
+    CatalogEntry("bruno", "Bruno.Bruno", "utilities", P_WEB_AI, "Bruno.exe"),
+    CatalogEntry("sysinternals", "Microsoft.Sysinternals.Suite", "utilities", P_SYS_HW, "procexp.exe"),
+    CatalogEntry("wireshark", "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME_HW, "Wireshark.exe"),
+    CatalogEntry("nmap", "Insecure.Nmap", "utilities", P_SYS, "nmap.exe"),
+    CatalogEntry("arduino-ide", "ArduinoSA.IDE.stable", "utilities", P_HW, "arduino.exe"),
+    CatalogEntry("putty", "PuTTY.PuTTY", "utilities", P_HW, "putty.exe"),
     # --- Layer 6: devops extras ---
     # Docker / Kubernetes are now catalog-driven so the GUI can exclude them.
-    WingetCatalogEntry("docker-desktop", "Docker.DockerDesktop", "devops", P_WEB_AI_SYS, "docker.exe"),
-    WingetCatalogEntry("kubectl", "Kubernetes.kubectl", "devops", P_WEB_AI_SYS, "kubectl.exe"),
-    WingetCatalogEntry("helm", "Helm.Helm", "devops", P_WEB_AI_SYS, "helm.exe"),
-    WingetCatalogEntry("postgresql-17", "PostgreSQL.PostgreSQL.17", "devops", P_WEB_AI, "psql.exe"),
-    WingetCatalogEntry("redis", "Redis.Redis", "devops", P_WEB_AI, "redis-server.exe"),
-    WingetCatalogEntry("mkcert", "FiloSottile.mkcert", "devops", P_WEB_AI, "mkcert.exe"),
-    WingetCatalogEntry("ngrok", "Ngrok.Ngrok", "devops", P_WEB_AI, "ngrok.exe"),
-    WingetCatalogEntry("aws-cli", "Amazon.AWSCLI", "devops", P_WEB_AI_SYS, "aws.exe"),
-    WingetCatalogEntry("google-cloud-sdk", "Google.CloudSDK", "devops", P_WEB_AI_SYS, "gcloud.cmd"),
-    WingetCatalogEntry("azure-cli", "Microsoft.AzureCLI", "devops", P_WEB_AI_SYS, "az.cmd"),
-    WingetCatalogEntry("podman-desktop", "RedHat.Podman-Desktop", "devops", P_SYS_AI_WEB, "podman.exe"),
+    CatalogEntry("docker-desktop", "Docker.DockerDesktop", "devops", P_WEB_AI_SYS, "docker.exe"),
+    CatalogEntry("kubectl", "Kubernetes.kubectl", "devops", P_WEB_AI_SYS, "kubectl.exe"),
+    CatalogEntry("helm", "Helm.Helm", "devops", P_WEB_AI_SYS, "helm.exe"),
+    CatalogEntry("postgresql-17", "PostgreSQL.PostgreSQL.17", "devops", P_WEB_AI, "psql.exe"),
+    CatalogEntry("redis", "Redis.Redis", "devops", P_WEB_AI, "redis-server.exe"),
+    CatalogEntry("mkcert", "FiloSottile.mkcert", "devops", P_WEB_AI, "mkcert.exe"),
+    CatalogEntry("ngrok", "Ngrok.Ngrok", "devops", P_WEB_AI, "ngrok.exe"),
+    CatalogEntry("aws-cli", "Amazon.AWSCLI", "devops", P_WEB_AI_SYS, "aws.exe"),
+    CatalogEntry("google-cloud-sdk", "Google.CloudSDK", "devops", P_WEB_AI_SYS, "gcloud.cmd"),
+    CatalogEntry("azure-cli", "Microsoft.AzureCLI", "devops", P_WEB_AI_SYS, "az.cmd"),
+    CatalogEntry("podman-desktop", "RedHat.Podman-Desktop", "devops", P_SYS_AI_WEB, "podman.exe"),
     # --- Layer 4: languages & build ---
-    WingetCatalogEntry("uv",          "astral-sh.uv",               "languages", None,  "uv.exe"),
-    WingetCatalogEntry("nvm-windows", "CoreyButler.NVMforWindows",  "languages", P_WEB, "nvm.exe"),
-    WingetCatalogEntry("golang", "GoLang.Go", "languages", P_WEB_AI_SYS, "go.exe"),
-    WingetCatalogEntry("temurin-jdk21", "EclipseAdoptium.Temurin.21.JDK", "languages", P_WEB_SYS_GAME, "java.exe"),
-    WingetCatalogEntry("dotnet-sdk-8", "Microsoft.DotNet.SDK.8", "languages", P_WEB_SYS_GAME, "dotnet.exe"),
-    WingetCatalogEntry("cmake", "Kitware.CMake", "languages", P_SYS_GAME_HW, "cmake.exe"),
-    WingetCatalogEntry("ninja", "Ninja-build.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe"),
-    WingetCatalogEntry("unity-hub", "Unity.UnityHub", "languages", P_GAME, "Unity Hub.exe"),
-    WingetCatalogEntry("godot", "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe"),
+    CatalogEntry("uv",          "astral-sh.uv",               "languages", None,  "uv.exe"),
+    CatalogEntry("nvm-windows", "CoreyButler.NVMforWindows",  "languages", P_WEB, "nvm.exe"),
+    CatalogEntry("golang", "GoLang.Go", "languages", P_WEB_AI_SYS, "go.exe"),
+    CatalogEntry("temurin-jdk21", "EclipseAdoptium.Temurin.21.JDK", "languages", P_WEB_SYS_GAME, "java.exe"),
+    CatalogEntry("dotnet-sdk-8", "Microsoft.DotNet.SDK.8", "languages", P_WEB_SYS_GAME, "dotnet.exe"),
+    CatalogEntry("cmake", "Kitware.CMake", "languages", P_SYS_GAME_HW, "cmake.exe"),
+    CatalogEntry("ninja", "Ninja-build.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe"),
+    CatalogEntry("unity-hub", "Unity.UnityHub", "languages", P_GAME, "Unity Hub.exe"),
+    CatalogEntry("godot", "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe"),
     # --- AI/ML non-Python non-pip installs (catalog-driven for excludability) ---
-    WingetCatalogEntry("ollama", "Ollama.Ollama", "ml_stack", P_AI, "ollama.exe"),
+    CatalogEntry("ollama", "Ollama.Ollama", "ml_stack", P_AI, "ollama.exe"),
     # --- Layer 3: editors extras ---
-    WingetCatalogEntry("jetbrains-toolbox", "JetBrains.Toolbox", "editors", P_LANG_STACK, "jetbrains-toolbox.exe"),
+    CatalogEntry("jetbrains-toolbox", "JetBrains.Toolbox", "editors", P_LANG_STACK, "jetbrains-toolbox.exe"),
     # --- Extras (opt-in profile; PROJECT.md personal-preference stack) ---
-    WingetCatalogEntry("powertoys", "Microsoft.PowerToys", "extras", P_EXTRAS, "PowerToys.exe"),
-    WingetCatalogEntry("obsidian", "Obsidian.Obsidian", "extras", P_EXTRAS, "Obsidian.exe"),
-    WingetCatalogEntry("obs-studio", "OBSProject.OBSStudio", "extras", P_EXTRAS, "obs64.exe"),
-    WingetCatalogEntry("sharex", "ShareX.ShareX", "extras", P_EXTRAS, "ShareX.exe"),
-    WingetCatalogEntry("hwinfo", "REALiX.HWiNFO", "extras", P_EXTRAS, "HWiNFO64.exe"),
-    WingetCatalogEntry("wiztree", "AntibodySoftware.WizTree", "extras", P_EXTRAS, "WizTree.exe"),
-    WingetCatalogEntry("vlc", "VideoLAN.VLC", "extras", P_EXTRAS, "vlc.exe"),
-    WingetCatalogEntry("bitwarden", "Bitwarden.Bitwarden", "extras", P_EXTRAS, "Bitwarden.exe"),
-    WingetCatalogEntry("keepassxc", "KeePassXCTeam.KeePassXC", "extras", P_EXTRAS, "KeePassXC.exe"),
-    WingetCatalogEntry("fork-git-client", "Fork.Fork", "extras", P_EXTRAS, "Fork.exe"),
-    WingetCatalogEntry("autohotkey", "AutoHotkey.AutoHotkey", "extras", P_EXTRAS, "AutoHotkey.exe"),
-    WingetCatalogEntry("discord", "Discord.Discord", "extras", P_EXTRAS, "Discord.exe"),
-    WingetCatalogEntry("ffmpeg", "Gyan.FFmpeg", "extras", P_EXTRAS, "ffmpeg.exe"),
+    CatalogEntry("powertoys", "Microsoft.PowerToys", "extras", P_EXTRAS, "PowerToys.exe"),
+    CatalogEntry("obsidian", "Obsidian.Obsidian", "extras", P_EXTRAS, "Obsidian.exe"),
+    CatalogEntry("obs-studio", "OBSProject.OBSStudio", "extras", P_EXTRAS, "obs64.exe"),
+    CatalogEntry("sharex", "ShareX.ShareX", "extras", P_EXTRAS, "ShareX.exe"),
+    CatalogEntry("hwinfo", "REALiX.HWiNFO", "extras", P_EXTRAS, "HWiNFO64.exe"),
+    CatalogEntry("wiztree", "AntibodySoftware.WizTree", "extras", P_EXTRAS, "WizTree.exe"),
+    CatalogEntry("vlc", "VideoLAN.VLC", "extras", P_EXTRAS, "vlc.exe"),
+    CatalogEntry("bitwarden", "Bitwarden.Bitwarden", "extras", P_EXTRAS, "Bitwarden.exe"),
+    CatalogEntry("keepassxc", "KeePassXCTeam.KeePassXC", "extras", P_EXTRAS, "KeePassXC.exe"),
+    CatalogEntry("fork-git-client", "Fork.Fork", "extras", P_EXTRAS, "Fork.exe"),
+    CatalogEntry("autohotkey", "AutoHotkey.AutoHotkey", "extras", P_EXTRAS, "AutoHotkey.exe"),
+    CatalogEntry("discord", "Discord.Discord", "extras", P_EXTRAS, "Discord.exe"),
+    CatalogEntry("ffmpeg", "Gyan.FFmpeg", "extras", P_EXTRAS, "ffmpeg.exe"),
 )
 
 
-def catalog_entries_for_layer(layer: str) -> Sequence[WingetCatalogEntry]:
+def catalog_entries_for_layer(layer: str) -> Sequence[CatalogEntry]:
     return tuple(e for e in WINGET_CATALOG if e.layer == layer)
 
 
@@ -294,7 +306,7 @@ def _extras_paths(tool: str) -> list[Path]:
     return maps.get(tool, [])
 
 
-def get_detector(entry: WingetCatalogEntry) -> Callable[[], bool]:
+def get_detector(entry: CatalogEntry) -> Callable[[], bool]:
     """Return presence detector for *entry* (exe on PATH or standard location)."""
     exe = entry.detect_exe
     if entry.layer == "extras":

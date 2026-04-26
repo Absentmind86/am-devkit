@@ -74,14 +74,14 @@ def main() -> int:
     failed: list[tuple[str, str, str]] = []  # (tool, winget_id, reason)
 
     for entry in entries:
-        ok, reason = _check_id(entry.winget_id, args.timeout)
+        ok, reason = _check_id(entry.win_id, args.timeout)
         icon = "[OK]  " if ok else "[FAIL]"
         layer_tag = f"[{entry.layer}]"
-        print(f"  {icon} {layer_tag:16s} {entry.winget_id:45s}  {reason if not ok else ''}")
+        print(f"  {icon} {layer_tag:16s} {entry.win_id:45s}  {reason if not ok else ''}")
         if ok:
-            passed.append(entry.winget_id)
+            passed.append(entry.win_id)
         else:
-            failed.append((entry.tool, entry.winget_id, reason))
+            failed.append((entry.tool, entry.win_id, reason))
 
     print("=" * 70)
     print(f"Passed: {len(passed)}/{len(entries)}")

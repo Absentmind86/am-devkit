@@ -50,7 +50,7 @@ def run_languages(ctx: InstallContext, manifest: Manifest, console: Console) -> 
             console,
             tool="python",
             layer="languages",
-            winget_id="Python.Python.3.12",
+            win_id="Python.Python.3.12",
             detect=lambda: False,
         )
 
