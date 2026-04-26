@@ -49,17 +49,19 @@ def _seed_dotfiles(ctx: InstallContext, manifest: Manifest, console: Console) ->
         console.print("  [skipped] dotfiles-seed — no templates directory")
         return
 
+    from core.platform_util import is_windows
     home = Path.home()
-    pwsh_dir = home / "Documents" / "PowerShell"
     mappings: list[tuple[str, Path, Path]] = [
         (".gitconfig", src_dir / ".gitconfig", home / ".gitconfig"),
-        (".bashrc", src_dir / ".bashrc", home / ".bashrc"),
-        (
+        (".bashrc",    src_dir / ".bashrc",     home / ".bashrc"),
+    ]
+    if is_windows():
+        pwsh_dir = home / "Documents" / "PowerShell"
+        mappings.append((
             "powershell-profile",
             src_dir / "powershell-profile.ps1",
             pwsh_dir / "Microsoft.PowerShell_profile.ps1",
-        ),
-    ]
+        ))
 
     if ctx.dry_run:
         manifest.record_tool(

@@ -273,29 +273,34 @@ def ensure_rustup_default(
     manifest: Manifest,
     console: Console,
 ) -> None:
-    """Install stable Rust via rustup-init when rustc is missing."""
+    """Install stable Rust via rustup-init (Windows) or rustup.rs curl script (Linux/macOS)."""
+    from core.platform_util import is_windows
     tool = "rustup-stable"
+
+    if is_windows():
+        _ensure_rustup_windows(ctx, manifest, console, tool)
+    else:
+        _ensure_rustup_unix(ctx, manifest, console, tool)
+
+
+def _ensure_rustup_windows(
+    ctx: InstallContext,
+    manifest: Manifest,
+    console: Console,
+    tool: str,
+) -> None:
     detect = r"if (Get-Command rustc -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
     code_d, _, _ = run_powershell(detect, timeout_s=30.0)
     if code_d == 0:
-        manifest.record_tool(
-            tool=tool,
-            layer="languages",
-            status="skipped",
-            install_method="rustup-init",
-            notes="rustc already on PATH.",
-        )
+        manifest.record_tool(tool=tool, layer="languages", status="skipped",
+                             install_method="rustup-init", notes="rustc already on PATH.")
         console.print(f"  [skipped] {tool} — already installed")
         return
 
     if ctx.dry_run:
-        manifest.record_tool(
-            tool=tool,
-            layer="languages",
-            status="planned",
-            install_method="rustup-init",
-            notes="Would download rustup-init and run with -y.",
-        )
+        manifest.record_tool(tool=tool, layer="languages", status="planned",
+                             install_method="rustup-init",
+                             notes="Would download rustup-init.exe and run with -y.")
         console.print(f"  [planned] {tool} — dry-run")
         return
 
@@ -311,23 +316,63 @@ exit $p.ExitCode
     code, out, err = run_powershell(ps, timeout_s=3600.0)
     tail = (out + "\n" + err).strip()[-2000:]
     if code == 0:
-        manifest.record_tool(
-            tool=tool,
-            layer="languages",
-            status="installed",
-            install_method="rustup-init",
-            notes=tail or None,
-        )
+        manifest.record_tool(tool=tool, layer="languages", status="installed",
+                             install_method="rustup-init", notes=tail or None)
         console.print(f"  [done] {tool}")
         return
-    manifest.record_tool(
-        tool=tool,
-        layer="languages",
-        status="failed",
-        install_method="rustup-init",
-        notes=f"exit {code}: {tail}",
-    )
+    manifest.record_tool(tool=tool, layer="languages", status="failed",
+                         install_method="rustup-init", notes=f"exit {code}: {tail}")
     console.print(f"  [failed] {tool} (exit {code})")
+
+
+def _ensure_rustup_unix(
+    ctx: InstallContext,
+    manifest: Manifest,
+    console: Console,
+    tool: str,
+) -> None:
+    if shutil.which("rustc"):
+        manifest.record_tool(tool=tool, layer="languages", status="skipped",
+                             install_method="rustup.rs", notes="rustc already on PATH.")
+        console.print(f"  [skipped] {tool} — already installed")
+        return
+
+    if ctx.dry_run:
+        manifest.record_tool(tool=tool, layer="languages", status="planned",
+                             install_method="rustup.rs",
+                             notes="Would run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y")
+        console.print(f"  [planned] {tool} — dry-run")
+        return
+
+    if not shutil.which("curl"):
+        manifest.record_tool(tool=tool, layer="languages", status="failed",
+                             install_method="rustup.rs", notes="curl not found on PATH.")
+        console.print(f"  [failed] {tool} — curl not available")
+        return
+
+    console.print(f"  [installing] {tool} via rustup.rs …")
+    try:
+        proc = subprocess.run(
+            ["sh", "-c", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=3600.0,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        manifest.record_tool(tool=tool, layer="languages", status="failed",
+                             install_method="rustup.rs", notes=f"{type(exc).__name__}: {exc}")
+        console.print(f"  [failed] {tool} — {exc}")
+        return
+
+    tail = (proc.stdout + "\n" + proc.stderr).strip()[-2000:]
+    if proc.returncode == 0:
+        manifest.record_tool(tool=tool, layer="languages", status="installed",
+                             install_method="rustup.rs", notes=tail or None)
+        console.print(f"  [done] {tool}")
+    else:
+        manifest.record_tool(tool=tool, layer="languages", status="failed",
+                             install_method="rustup.rs",
+                             notes=f"exit {proc.returncode}: {tail}")
+        console.print(f"  [failed] {tool} (exit {proc.returncode})")
 
 
 def ensure_wsl_prereq(

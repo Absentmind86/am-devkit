@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from core.platform_util import is_windows
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -14,6 +16,17 @@ if TYPE_CHECKING:
 
 def run_preflight(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
     """Create a system restore point when possible (requires elevation on many systems)."""
+    if not is_windows():
+        manifest.record_tool(
+            tool="system-restore-point",
+            layer="preflight",
+            status="skipped",
+            install_method="Checkpoint-Computer",
+            notes="Not applicable on this platform.",
+        )
+        console.print("  [skipped] System restore point — Windows only")
+        return
+
     if ctx.skip_restore_point:
         manifest.record_tool(
             tool="system-restore-point",
