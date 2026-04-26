@@ -97,8 +97,8 @@ def ensure_winget_package(
     winget_id: str,
     detect: Callable[[], bool],
     version_hint: str | None = None,
-) -> None:
-    """If *detect* is false, install *winget_id* unless dry-run."""
+) -> bool:
+    """If *detect* is false, install *winget_id* unless dry-run. Returns True on success."""
     if detect():
         manifest.record_tool(
             tool=tool,
@@ -110,7 +110,7 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [skipped] {tool} — already installed")
-        return
+        return True
 
     if ctx.dry_run:
         manifest.record_tool(
@@ -123,7 +123,7 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [planned] {tool} — dry-run")
-        return
+        return True
 
     if not winget_available():
         manifest.record_tool(
@@ -135,7 +135,7 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [failed] {tool} — winget not available")
-        return
+        return False
 
     console.print(f"  [installing] {tool} via winget (streaming output below)…")
     code, out, err = run_winget_install(winget_id, dry_run=False, show_output=True)
@@ -151,7 +151,7 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [done] {tool}")
-        return
+        return True
 
     if code in _WINGET_ALREADY_INSTALLED_CODES:
         manifest.record_tool(
@@ -164,7 +164,7 @@ def ensure_winget_package(
             winget_id=winget_id,
         )
         console.print(f"  [skipped] {tool} — already installed (winget: no newer version)")
-        return
+        return True
 
     manifest.record_tool(
         tool=tool,
@@ -175,3 +175,4 @@ def ensure_winget_package(
         winget_id=winget_id,
     )
     console.print(f"  [failed] {tool} (exit {code})")
+    return False

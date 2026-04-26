@@ -44,13 +44,24 @@ def _install_entry(
         console.print(f"  [skipped] {entry.tool} — not available on this platform")
         return
 
+    detect = get_detector(entry)
+
     if is_windows():
-        ensure_winget_package(
+        ok = ensure_winget_package(
             ctx, manifest, console,
             tool=entry.tool, layer=layer,
             winget_id=pkg_id,
-            detect=get_detector(entry),
+            detect=detect,
         )
+        if not ok and entry.choco_id:
+            from core.choco_util import ensure_choco_package
+            console.print(f"  [fallback] {entry.tool} — winget failed, trying choco…")
+            ensure_choco_package(
+                ctx, manifest, console,
+                tool=entry.tool, layer=layer,
+                choco_id=entry.choco_id,
+                detect=detect,
+            )
     elif is_macos():
         from core.brew_util import ensure_brew_package
         ensure_brew_package(
@@ -58,7 +69,8 @@ def _install_entry(
             tool=entry.tool, layer=layer,
             pkg_id=pkg_id,
             is_cask=entry.macos_cask,
-            detect=get_detector(entry),
+            detect=detect,
+            brew_tap=entry.brew_tap,
         )
     else:
         from core.linux_util import ensure_linux_package
@@ -67,7 +79,8 @@ def _install_entry(
             tool=entry.tool, layer=layer,
             pkg_id=pkg_id,
             manager=primary_pkg_manager(),
-            detect=get_detector(entry),
+            detect=detect,
+            repo_key=entry.linux_repo,
         )
 
 

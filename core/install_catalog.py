@@ -1,9 +1,12 @@
 """Cross-platform package catalog toward PROJECT.md Phase 2B (profile-gated where noted).
 
-win_id   — winget package ID (Windows)
-linux_id — apt/dnf/pacman package name (Linux); None = not available / skip
-macos_id — brew formula or cask name (macOS); None = not available / skip
+win_id     — winget package ID (Windows)
+choco_id   — Chocolatey package ID (Windows fallback when winget fails); None = skip
+linux_id   — apt/dnf/pacman package name (Linux); None = not available / skip
+linux_repo — key into linux_util._APT_REPO_SETUP; third-party repo to add before apt install
+macos_id   — brew formula or cask name (macOS); None = not available / skip
 macos_cask — True when macos_id is a brew cask (GUI app), False for formulas
+brew_tap   — homebrew tap to run before brew install (e.g. "adoptium/adoptium")
 
 A wrong id surfaces as a failed manifest row on first real install so it can be
 corrected without guessing silently.
@@ -48,6 +51,9 @@ class CatalogEntry:
     linux_id: str | None = None
     macos_id: str | None = None
     macos_cask: bool = False
+    choco_id: str | None = None     # Chocolatey fallback (Windows only)
+    brew_tap: str | None = None     # brew tap to run before brew install
+    linux_repo: str | None = None   # key into linux_util._APT_REPO_SETUP
 
     def applies_to(self, selected: set[str]) -> bool:
         if self.profiles is None:
@@ -72,23 +78,29 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     # Git, Git LFS, Scoop, OpenSSH are bootstrap prereqs — not in this catalog.
     CatalogEntry("github-cli",
         "GitHub.cli", "infrastructure", None, "gh.exe",
-        linux_id="gh", macos_id="gh"),
+        linux_id="gh", macos_id="gh",
+        choco_id="gh", linux_repo="gh"),
     CatalogEntry("windows-terminal",
-        "Microsoft.WindowsTerminal", "infrastructure", None, "wt.exe"),  # Windows only
+        "Microsoft.WindowsTerminal", "infrastructure", None, "wt.exe",
+        choco_id="microsoft-windows-terminal"),
     CatalogEntry("powershell-7",
         "Microsoft.PowerShell", "infrastructure", None, "pwsh.exe",
-        linux_id="powershell", macos_id="powershell"),  # via Microsoft apt/brew tap
+        linux_id="powershell", macos_id="powershell",
+        choco_id="powershell-core", linux_repo="microsoft"),
     CatalogEntry("oh-my-posh",
         "JanDeDobbeleer.OhMyPosh", "infrastructure", None, "oh-my-posh.exe",
-        macos_id="oh-my-posh"),  # brew tap: jandedobbeleer/oh-my-posh; no apt pkg
+        macos_id="oh-my-posh",
+        choco_id="oh-my-posh", brew_tap="jandedobbeleer/oh-my-posh"),
     CatalogEntry("tailscale",
         "Tailscale.Tailscale", "infrastructure", None, "tailscale.exe",
-        linux_id="tailscale", macos_id="tailscale", macos_cask=True),
+        linux_id="tailscale", macos_id="tailscale", macos_cask=True,
+        choco_id="tailscale", linux_repo="tailscale"),
 
     # --- Layer 3: editors ---
     CatalogEntry("vscode",
         "Microsoft.VisualStudioCode", "editors", None, "code.cmd",
-        linux_id="code", macos_id="visual-studio-code", macos_cask=True),
+        linux_id="code", macos_id="visual-studio-code", macos_cask=True,
+        choco_id="vscode", linux_repo="vscode"),
     CatalogEntry("cursor",
         "Anysphere.Cursor", "editors", None, "cursor.exe",
         macos_id="cursor", macos_cask=True),  # no official Linux apt pkg (AppImage only)
@@ -96,145 +108,192 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     # --- Layer 7: utilities ---
     CatalogEntry("7zip",
         "7zip.7zip", "utilities", None, "7z.exe",
-        linux_id="p7zip-full", macos_id="sevenzip"),
+        linux_id="p7zip-full", macos_id="sevenzip",
+        choco_id="7zip"),
     CatalogEntry("notepadplusplus",
-        "Notepad++.Notepad++", "utilities", None, "notepad++.exe"),  # Windows only
+        "Notepad++.Notepad++", "utilities", None, "notepad++.exe",
+        choco_id="notepadplusplus"),
     CatalogEntry("everything",
-        "voidtools.Everything", "utilities", None, "Everything.exe"),  # Windows only
+        "voidtools.Everything", "utilities", None, "Everything.exe",
+        choco_id="everything"),
     CatalogEntry("devtoys",
-        "DevToys-app.DevToys", "utilities", None, "DevToys.exe"),  # Windows only
+        "DevToys-app.DevToys", "utilities", None, "DevToys.exe",
+        choco_id="devtoys"),
     CatalogEntry("winmerge",
-        "WinMerge.WinMerge", "utilities", None, "WinMergeU.exe"),  # Windows only
+        "WinMerge.WinMerge", "utilities", None, "WinMergeU.exe",
+        choco_id="winmerge"),
     CatalogEntry("dbeaver",
         "DBeaver.DBeaver.Community", "utilities", P_WEB_AI, "dbeaver.exe",
-        linux_id="dbeaver-ce", macos_id="dbeaver-community", macos_cask=True),
+        linux_id="dbeaver-ce", macos_id="dbeaver-community", macos_cask=True,
+        choco_id="dbeaver"),
     CatalogEntry("bruno",
         "Bruno.Bruno", "utilities", P_WEB_AI, "Bruno.exe",
-        linux_id="bruno", macos_id="bruno", macos_cask=True),
+        linux_id="bruno", macos_id="bruno", macos_cask=True,
+        choco_id="bruno"),
     CatalogEntry("sysinternals",
-        "Microsoft.Sysinternals.Suite", "utilities", P_SYS_HW, "procexp.exe"),  # Windows only
+        "Microsoft.Sysinternals.Suite", "utilities", P_SYS_HW, "procexp.exe",
+        choco_id="sysinternals"),
     CatalogEntry("wireshark",
         "WiresharkFoundation.Wireshark", "utilities", P_SYS_GAME_HW, "Wireshark.exe",
-        linux_id="wireshark", macos_id="wireshark", macos_cask=True),
+        linux_id="wireshark", macos_id="wireshark", macos_cask=True,
+        choco_id="wireshark"),
     CatalogEntry("nmap",
         "Insecure.Nmap", "utilities", P_SYS, "nmap.exe",
-        linux_id="nmap", macos_id="nmap"),
+        linux_id="nmap", macos_id="nmap",
+        choco_id="nmap"),
     CatalogEntry("arduino-ide",
         "ArduinoSA.IDE.stable", "utilities", P_HW, "arduino.exe",
-        macos_id="arduino-ide", macos_cask=True),  # no official Linux apt pkg (AppImage only)
+        macos_id="arduino-ide", macos_cask=True,
+        choco_id="arduino-ide"),
     CatalogEntry("putty",
         "PuTTY.PuTTY", "utilities", P_HW, "putty.exe",
-        linux_id="putty", macos_id="putty"),
+        linux_id="putty", macos_id="putty",
+        choco_id="putty"),
 
     # --- Layer 6: devops ---
     # Docker / Kubernetes are catalog-driven so the GUI can exclude them.
     CatalogEntry("docker-desktop",
         "Docker.DockerDesktop", "devops", P_WEB_AI_SYS, "docker.exe",
-        macos_id="docker", macos_cask=True),  # Linux uses Docker Engine, not Desktop
+        macos_id="docker", macos_cask=True,
+        choco_id="docker-desktop"),
     CatalogEntry("kubectl",
         "Kubernetes.kubectl", "devops", P_WEB_AI_SYS, "kubectl.exe",
-        linux_id="kubectl", macos_id="kubectl"),
+        linux_id="kubectl", macos_id="kubectl",
+        choco_id="kubernetes-cli", linux_repo="kubernetes"),
     CatalogEntry("helm",
         "Helm.Helm", "devops", P_WEB_AI_SYS, "helm.exe",
-        linux_id="helm", macos_id="helm"),
+        linux_id="helm", macos_id="helm",
+        choco_id="kubernetes-helm", linux_repo="helm"),
     CatalogEntry("postgresql-17",
         "PostgreSQL.PostgreSQL.17", "devops", P_WEB_AI, "psql.exe",
-        linux_id="postgresql", macos_id="postgresql@17"),
+        linux_id="postgresql", macos_id="postgresql@17",
+        choco_id="postgresql"),
     CatalogEntry("redis",
         "Redis.Redis", "devops", P_WEB_AI, "redis-server.exe",
-        linux_id="redis-server", macos_id="redis"),
+        linux_id="redis-server", macos_id="redis",
+        choco_id="redis-64"),
     CatalogEntry("mkcert",
         "FiloSottile.mkcert", "devops", P_WEB_AI, "mkcert.exe",
-        linux_id="mkcert", macos_id="mkcert"),
+        linux_id="mkcert", macos_id="mkcert",
+        choco_id="mkcert"),
     CatalogEntry("ngrok",
         "Ngrok.Ngrok", "devops", P_WEB_AI, "ngrok.exe",
-        linux_id="ngrok", macos_id="ngrok", macos_cask=True),
+        linux_id="ngrok", macos_id="ngrok", macos_cask=True,
+        choco_id="ngrok", linux_repo="ngrok"),
     CatalogEntry("aws-cli",
         "Amazon.AWSCLI", "devops", P_WEB_AI_SYS, "aws.exe",
-        linux_id="awscli", macos_id="awscli"),
+        linux_id="awscli", macos_id="awscli",
+        choco_id="awscli"),
     CatalogEntry("google-cloud-sdk",
         "Google.CloudSDK", "devops", P_WEB_AI_SYS, "gcloud.cmd",
-        linux_id="google-cloud-sdk", macos_id="google-cloud-sdk", macos_cask=True),
+        linux_id="google-cloud-sdk", macos_id="google-cloud-sdk", macos_cask=True,
+        choco_id="gcloudsdk", linux_repo="google-cloud"),
     CatalogEntry("azure-cli",
         "Microsoft.AzureCLI", "devops", P_WEB_AI_SYS, "az.cmd",
-        linux_id="azure-cli", macos_id="azure-cli"),
+        linux_id="azure-cli", macos_id="azure-cli",
+        choco_id="azure-cli", linux_repo="azure-cli"),
     CatalogEntry("podman-desktop",
         "RedHat.Podman-Desktop", "devops", P_SYS_AI_WEB, "podman.exe",
-        macos_id="podman-desktop", macos_cask=True),  # no apt pkg for Desktop (Engine only)
+        macos_id="podman-desktop", macos_cask=True,
+        choco_id="podman-desktop"),
 
     # --- Layer 4: languages & build ---
     CatalogEntry("uv",
         "astral-sh.uv", "languages", None, "uv.exe",
-        linux_id="uv", macos_id="uv"),  # available via brew and pip; apt in newer distros
+        linux_id="uv", macos_id="uv",
+        choco_id="uv"),
     CatalogEntry("nvm-windows",
-        "CoreyButler.NVMforWindows", "languages", P_WEB, "nvm.exe"),  # Windows only (use nvm script on lin/mac)
+        "CoreyButler.NVMforWindows", "languages", P_WEB, "nvm.exe",
+        choco_id="nvm"),
     CatalogEntry("golang",
         "GoLang.Go", "languages", P_WEB_AI_SYS, "go.exe",
-        linux_id="golang-go", macos_id="go"),
+        linux_id="golang-go", macos_id="go",
+        choco_id="golang"),
     CatalogEntry("temurin-jdk21",
         "EclipseAdoptium.Temurin.21.JDK", "languages", P_WEB_SYS_GAME, "java.exe",
-        linux_id="temurin-21", macos_id="temurin@21", macos_cask=True),  # via Adoptium tap
+        linux_id="temurin-21", macos_id="temurin@21", macos_cask=True,
+        choco_id="temurin21", brew_tap="adoptium/adoptium", linux_repo="adoptium"),
     CatalogEntry("dotnet-sdk-8",
         "Microsoft.DotNet.SDK.8", "languages", P_WEB_SYS_GAME, "dotnet.exe",
-        linux_id="dotnet-sdk-8.0", macos_id="dotnet-sdk", macos_cask=True),
+        linux_id="dotnet-sdk-8.0", macos_id="dotnet-sdk", macos_cask=True,
+        choco_id="dotnet-sdk", linux_repo="microsoft"),
     CatalogEntry("cmake",
         "Kitware.CMake", "languages", P_SYS_GAME_HW, "cmake.exe",
-        linux_id="cmake", macos_id="cmake"),
+        linux_id="cmake", macos_id="cmake",
+        choco_id="cmake"),
     CatalogEntry("ninja",
         "Ninja-build.Ninja", "languages", P_SYS_GAME_HW, "ninja.exe",
-        linux_id="ninja-build", macos_id="ninja"),
+        linux_id="ninja-build", macos_id="ninja",
+        choco_id="ninja"),
     CatalogEntry("unity-hub",
         "Unity.UnityHub", "languages", P_GAME, "Unity Hub.exe",
-        linux_id="unityhub", macos_id="unity-hub", macos_cask=True),  # via Unity apt repo
+        linux_id="unityhub", macos_id="unity-hub", macos_cask=True,
+        choco_id="unity-hub", linux_repo="unity"),
     CatalogEntry("godot",
         "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe",
-        macos_id="godot", macos_cask=True),  # no official Linux apt pkg (flatpak/direct only)
+        macos_id="godot", macos_cask=True,
+        choco_id="godot"),
 
     # --- AI/ML ---
     CatalogEntry("ollama",
         "Ollama.Ollama", "ml_stack", P_AI, "ollama.exe",
-        macos_id="ollama", macos_cask=True),  # Linux: curl installer (no apt pkg)
+        macos_id="ollama", macos_cask=True,
+        choco_id="ollama"),
 
     # --- Layer 3: editors extras ---
     CatalogEntry("jetbrains-toolbox",
         "JetBrains.Toolbox", "editors", P_LANG_STACK, "jetbrains-toolbox.exe",
-        macos_id="jetbrains-toolbox", macos_cask=True),  # no apt pkg (direct binary)
+        macos_id="jetbrains-toolbox", macos_cask=True,
+        choco_id="jetbrains-toolbox"),
 
     # --- Extras ---
     CatalogEntry("powertoys",
-        "Microsoft.PowerToys", "extras", P_EXTRAS, "PowerToys.exe"),  # Windows only
+        "Microsoft.PowerToys", "extras", P_EXTRAS, "PowerToys.exe",
+        choco_id="powertoys"),
     CatalogEntry("obsidian",
         "Obsidian.Obsidian", "extras", P_EXTRAS, "Obsidian.exe",
-        macos_id="obsidian", macos_cask=True),  # Linux: AppImage/flatpak only
+        macos_id="obsidian", macos_cask=True,
+        choco_id="obsidian"),
     CatalogEntry("obs-studio",
         "OBSProject.OBSStudio", "extras", P_EXTRAS, "obs64.exe",
-        linux_id="obs-studio", macos_id="obs", macos_cask=True),
+        linux_id="obs-studio", macos_id="obs", macos_cask=True,
+        choco_id="obs-studio"),
     CatalogEntry("sharex",
-        "ShareX.ShareX", "extras", P_EXTRAS, "ShareX.exe"),  # Windows only
+        "ShareX.ShareX", "extras", P_EXTRAS, "ShareX.exe",
+        choco_id="sharex"),
     CatalogEntry("hwinfo",
-        "REALiX.HWiNFO", "extras", P_EXTRAS, "HWiNFO64.exe"),  # Windows only
+        "REALiX.HWiNFO", "extras", P_EXTRAS, "HWiNFO64.exe",
+        choco_id="hwinfo"),
     CatalogEntry("wiztree",
-        "AntibodySoftware.WizTree", "extras", P_EXTRAS, "WizTree.exe"),  # Windows only
+        "AntibodySoftware.WizTree", "extras", P_EXTRAS, "WizTree.exe",
+        choco_id="wiztree"),
     CatalogEntry("vlc",
         "VideoLAN.VLC", "extras", P_EXTRAS, "vlc.exe",
-        linux_id="vlc", macos_id="vlc", macos_cask=True),
+        linux_id="vlc", macos_id="vlc", macos_cask=True,
+        choco_id="vlc"),
     CatalogEntry("bitwarden",
         "Bitwarden.Bitwarden", "extras", P_EXTRAS, "Bitwarden.exe",
-        macos_id="bitwarden", macos_cask=True),  # Linux: AppImage/flatpak only
+        macos_id="bitwarden", macos_cask=True,
+        choco_id="bitwarden"),
     CatalogEntry("keepassxc",
         "KeePassXCTeam.KeePassXC", "extras", P_EXTRAS, "KeePassXC.exe",
-        linux_id="keepassxc", macos_id="keepassxc", macos_cask=True),
+        linux_id="keepassxc", macos_id="keepassxc", macos_cask=True,
+        choco_id="keepassxc"),
     CatalogEntry("fork-git-client",
         "Fork.Fork", "extras", P_EXTRAS, "Fork.exe",
-        macos_id="fork", macos_cask=True),  # no Linux version
+        macos_id="fork", macos_cask=True,
+        choco_id="fork"),
     CatalogEntry("autohotkey",
-        "AutoHotkey.AutoHotkey", "extras", P_EXTRAS, "AutoHotkey.exe"),  # Windows only
+        "AutoHotkey.AutoHotkey", "extras", P_EXTRAS, "AutoHotkey.exe",
+        choco_id="autohotkey"),
     CatalogEntry("discord",
         "Discord.Discord", "extras", P_EXTRAS, "Discord.exe",
-        macos_id="discord", macos_cask=True),  # Linux: deb/flatpak (no standard apt pkg)
+        macos_id="discord", macos_cask=True,
+        choco_id="discord"),
     CatalogEntry("ffmpeg",
         "Gyan.FFmpeg", "extras", P_EXTRAS, "ffmpeg.exe",
-        linux_id="ffmpeg", macos_id="ffmpeg"),
+        linux_id="ffmpeg", macos_id="ffmpeg",
+        choco_id="ffmpeg"),
 )
 
 
