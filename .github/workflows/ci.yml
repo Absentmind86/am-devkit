@@ -2,18 +2,31 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/cross-platform]
   pull_request:
     branches: [main]
 
 jobs:
   lint-and-test:
-    name: Lint + Test (Python ${{ matrix.python-version }})
-    runs-on: windows-latest
+    name: Lint + Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        include:
+          # Windows — full Python version matrix (primary target platform)
+          - os: windows-latest
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.13"
+          # Linux — single version to verify cross-platform routing
+          - os: ubuntu-latest
+            python-version: "3.12"
+          # macOS — single version to verify cross-platform routing
+          - os: macos-latest
+            python-version: "3.12"
 
     steps:
       - uses: actions/checkout@v4
@@ -31,33 +44,39 @@ jobs:
           # All unit tests and non-GUI modules run without it.
 
       - name: Syntax check — non-GUI modules (py_compile)
+        shell: bash
         run: |
-          python -m py_compile `
-            core/catalog_install.py `
-            core/devops.py `
-            core/editors.py `
-            core/extras.py `
-            core/finalize.py `
-            core/infrastructure.py `
-            core/install_catalog.py `
-            core/install_context.py `
-            core/installer.py `
-            core/languages.py `
-            core/launchpad.py `
-            core/manifest.py `
-            core/ml_stack.py `
-            core/pre_install_summary.py `
-            core/preflight.py `
-            core/pwsh_util.py `
-            core/pyenv_scoop.py `
-            core/restore_bundle.py `
-            core/sandbox.py `
-            core/sanitize.py `
-            core/system_scan.py `
-            core/utilities.py `
-            core/winget_util.py `
-            core/winutil_presets.py `
-            scripts/gpu_detect.py `
+          python -m py_compile \
+            core/brew_util.py \
+            core/catalog_install.py \
+            core/choco_util.py \
+            core/devops.py \
+            core/editors.py \
+            core/extras.py \
+            core/finalize.py \
+            core/infrastructure.py \
+            core/install_catalog.py \
+            core/install_context.py \
+            core/installer.py \
+            core/languages.py \
+            core/launchpad.py \
+            core/linux_util.py \
+            core/manifest.py \
+            core/ml_stack.py \
+            core/platform_util.py \
+            core/pre_install_summary.py \
+            core/preflight.py \
+            core/pwsh_util.py \
+            core/pyenv_scoop.py \
+            core/restore_bundle.py \
+            core/sandbox.py \
+            core/sanitize.py \
+            core/snap_util.py \
+            core/system_scan.py \
+            core/utilities.py \
+            core/winget_util.py \
+            core/winutil_presets.py \
+            scripts/gpu_detect.py \
             scripts/path_auditor.py
 
       - name: Ruff lint

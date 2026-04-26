@@ -7,6 +7,8 @@ linux_repo — key into linux_util._APT_REPO_SETUP; third-party repo to add befo
 macos_id   — brew formula or cask name (macOS); None = not available / skip
 macos_cask — True when macos_id is a brew cask (GUI app), False for formulas
 brew_tap   — homebrew tap to run before brew install (e.g. "adoptium/adoptium")
+snap_id    — Snap package name (Linux fallback when linux_id is None or apt fails)
+snap_classic — True when snap install requires --classic confinement
 
 A wrong id surfaces as a failed manifest row on first real install so it can be
 corrected without guessing silently.
@@ -56,6 +58,8 @@ class CatalogEntry:
     choco_id: str | None = None     # Chocolatey fallback (Windows only)
     brew_tap: str | None = None     # brew tap to run before brew install
     linux_repo: str | None = None   # key into linux_util._APT_REPO_SETUP
+    snap_id: str | None = None      # Snap package name (Linux fallback when linux_id=None)
+    snap_classic: bool = False      # True when snap requires --classic confinement
 
     def applies_to(self, selected: set[str]) -> bool:
         if self.profiles is None:
@@ -235,7 +239,7 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     CatalogEntry("godot",
         "GodotEngine.GodotEngine", "languages", P_GAME, "godot.exe",
         macos_id="godot", macos_cask=True,
-        choco_id="godot"),
+        choco_id="godot", snap_id="godot4"),
 
     # --- AI/ML ---
     CatalogEntry("ollama",
@@ -256,7 +260,7 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     CatalogEntry("obsidian",
         "Obsidian.Obsidian", "extras", P_EXTRAS, "Obsidian.exe",
         macos_id="obsidian", macos_cask=True,
-        choco_id="obsidian"),
+        choco_id="obsidian", snap_id="obsidian", snap_classic=True),
     CatalogEntry("obs-studio",
         "OBSProject.OBSStudio", "extras", P_EXTRAS, "obs64.exe",
         linux_id="obs-studio", macos_id="obs", macos_cask=True,
@@ -277,7 +281,7 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     CatalogEntry("bitwarden",
         "Bitwarden.Bitwarden", "extras", P_EXTRAS, "Bitwarden.exe",
         macos_id="bitwarden", macos_cask=True,
-        choco_id="bitwarden"),
+        choco_id="bitwarden", snap_id="bitwarden"),
     CatalogEntry("keepassxc",
         "KeePassXCTeam.KeePassXC", "extras", P_EXTRAS, "KeePassXC.exe",
         linux_id="keepassxc", macos_id="keepassxc", macos_cask=True,
@@ -292,7 +296,7 @@ WINGET_CATALOG: tuple[CatalogEntry, ...] = (
     CatalogEntry("discord",
         "Discord.Discord", "extras", P_EXTRAS, "Discord.exe",
         macos_id="discord", macos_cask=True,
-        choco_id="discord"),
+        choco_id="discord", snap_id="discord"),
     CatalogEntry("ffmpeg",
         "Gyan.FFmpeg", "extras", P_EXTRAS, "ffmpeg.exe",
         linux_id="ffmpeg", macos_id="ffmpeg",

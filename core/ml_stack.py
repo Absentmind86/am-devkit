@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import sys
 from typing import TYPE_CHECKING
 
+from core.platform_util import is_macos, is_windows
 from core.winget_util import ensure_winget_package, which
 
 if TYPE_CHECKING:
@@ -16,6 +19,43 @@ if TYPE_CHECKING:
 
 
 from core import ensure_repo_on_sys_path
+
+
+def _ensure_ollama_linux(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
+    """Install Ollama on Linux via the official curl installer (no apt package)."""
+    if shutil.which("ollama") is not None:
+        manifest.record_tool(tool="ollama", layer="ml_stack", status="skipped",
+                             install_method="curl-installer",
+                             notes="ollama already on PATH.")
+        console.print("  [skipped] ollama — already installed")
+        return
+    if ctx.dry_run:
+        manifest.record_tool(tool="ollama", layer="ml_stack", status="planned",
+                             install_method="curl-installer",
+                             notes="Would run: curl -fsSL https://ollama.com/install.sh | sh")
+        console.print("  [planned] ollama — dry-run")
+        return
+    console.print("  [installing] ollama via curl installer…")
+    try:
+        proc = subprocess.run(
+            ["bash", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300.0,
+        )
+        combined = (proc.stdout + "\n" + proc.stderr).strip()
+        if proc.returncode == 0:
+            manifest.record_tool(tool="ollama", layer="ml_stack", status="installed",
+                                 install_method="curl-installer",
+                                 notes=combined[-2000:] if combined else None)
+            console.print("  [done] ollama")
+        else:
+            manifest.record_tool(tool="ollama", layer="ml_stack", status="failed",
+                                 install_method="curl-installer",
+                                 notes=f"exit {proc.returncode}: {combined[-2000:]}")
+            console.print(f"  [failed] ollama (exit {proc.returncode})")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        manifest.record_tool(tool="ollama", layer="ml_stack", status="failed",
+                             install_method="curl-installer", notes=str(exc))
+        console.print(f"  [failed] ollama — {exc}")
 
 
 def _pip_ml_base(ctx: InstallContext, manifest: Manifest, console: Console) -> None:
@@ -110,16 +150,26 @@ def run_ml_stack(ctx: InstallContext, manifest: Manifest, console: Console) -> N
             notes="Excluded via --exclude-catalog-tool ollama.",
         )
         console.print("  [skipped] ollama — user excluded")
-    else:
+    elif is_windows():
         ensure_winget_package(
             ctx,
             manifest,
             console,
             tool="ollama",
             layer="ml_stack",
-            win_id="Ollama.Ollama",
-            detect=lambda: which("ollama.exe") is not None,
+            winget_id="Ollama.Ollama",
+            detect=lambda: bool(which("ollama.exe") or shutil.which("ollama")),
         )
+    elif is_macos():
+        from core.brew_util import ensure_brew_package
+        ensure_brew_package(
+            ctx, manifest, console,
+            tool="ollama", layer="ml_stack",
+            pkg_id="ollama", is_cask=True,
+            detect=lambda: shutil.which("ollama") is not None,
+        )
+    else:
+        _ensure_ollama_linux(ctx, manifest, console)
 
     _pip_ml_base(ctx, manifest, console)
 

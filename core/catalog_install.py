@@ -32,8 +32,11 @@ def _install_entry(
     layer: str,
 ) -> None:
     pkg_id = _get_pkg_id(entry)
+    detect = get_detector(entry)
 
-    if pkg_id is None:
+    # On Linux, pkg_id=None (no apt package) is not terminal if snap_id is set.
+    # For Windows and macOS, None means genuinely unavailable.
+    if pkg_id is None and (is_windows() or is_macos()):
         manifest.record_tool(
             tool=entry.tool,
             layer=layer,
@@ -44,13 +47,11 @@ def _install_entry(
         console.print(f"  [skipped] {entry.tool} — not available on this platform")
         return
 
-    detect = get_detector(entry)
-
     if is_windows():
         ok = ensure_winget_package(
             ctx, manifest, console,
             tool=entry.tool, layer=layer,
-            winget_id=pkg_id,
+            winget_id=pkg_id,  # type: ignore[arg-type]  # never None here
             detect=detect,
         )
         if not ok and entry.choco_id:
@@ -67,14 +68,34 @@ def _install_entry(
         ensure_brew_package(
             ctx, manifest, console,
             tool=entry.tool, layer=layer,
-            pkg_id=pkg_id,
+            pkg_id=pkg_id,  # type: ignore[arg-type]  # never None here
             is_cask=entry.macos_cask,
             detect=detect,
             brew_tap=entry.brew_tap,
         )
     else:
+        # Linux
+        if pkg_id is None:
+            # No apt package: try snap, or record as unavailable
+            if entry.snap_id:
+                from core.snap_util import ensure_snap_package
+                ensure_snap_package(
+                    ctx, manifest, console,
+                    tool=entry.tool, layer=layer,
+                    snap_id=entry.snap_id,
+                    classic=entry.snap_classic,
+                    detect=detect,
+                )
+            else:
+                manifest.record_tool(
+                    tool=entry.tool, layer=layer, status="skipped",
+                    install_method="platform",
+                    notes="Not available on Linux (no apt package or snap ID).",
+                )
+                console.print(f"  [skipped] {entry.tool} — not available on Linux")
+            return
         from core.linux_util import ensure_linux_package
-        ensure_linux_package(
+        ok = ensure_linux_package(
             ctx, manifest, console,
             tool=entry.tool, layer=layer,
             pkg_id=pkg_id,
@@ -82,6 +103,16 @@ def _install_entry(
             detect=detect,
             repo_key=entry.linux_repo,
         )
+        if not ok and entry.snap_id:
+            from core.snap_util import ensure_snap_package
+            console.print(f"  [fallback] {entry.tool} — apt failed, trying snap…")
+            ensure_snap_package(
+                ctx, manifest, console,
+                tool=entry.tool, layer=layer,
+                snap_id=entry.snap_id,
+                classic=entry.snap_classic,
+                detect=detect,
+            )
 
 
 def install_catalog_layer(
